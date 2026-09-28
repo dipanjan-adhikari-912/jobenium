@@ -71,3 +71,10 @@ Baseline: **0 lint errors, exactly 3 pre-existing warnings** (`ui/button.tsx`,
   (`BackdropImage`); the index persists in `jobenium:backdrop` and the same image
   is shown in the results-page panel. Keep `BACKDROP_FADE_MS` in sync with the
   layer `duration-700`.
+- Analytics are Vercel Web Analytics only (no cookies, no PII, no third-party
+  script): `inject()` in `src/main.tsx`, production only. The footer counter is
+  real — it reads `/api/active-visitors` (`api/active-visitors.ts`), which queries
+  the WA query API with the `VERCEL_TOKEN` secret (set in Vercel project env;
+  `VERCEL_PROJECT_ID`/`VERCEL_TEAM_ID` are injected by the platform). The counter
+  hides itself when unconfigured or when the query fails, so never restore a
+  synthetic/fake number. `tsconfig.api.json` typechecks `api/` for `tsc -b`.
