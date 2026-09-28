@@ -18,7 +18,7 @@ export function RecentSearches({ recents, onSelect, onClear }: RecentSearchesPro
         <Clock className="h-3 w-3" />
         Recent searches
       </p>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex max-h-[72px] flex-wrap gap-2 overflow-y-auto sm:max-h-none">
         {recents.map((r, i) => (
           <Button
             key={`${r.title}-${i}`}

@@ -239,7 +239,7 @@ export function SourcesDirectory({
         <div
           role="tablist"
           aria-label="Source categories"
-          className="inline-flex max-w-full flex-wrap items-center gap-1 rounded-full border border-[#e5e1da] bg-white p-1 dark:border-[#24282c] dark:bg-[#16191c]"
+          className="inline-flex max-w-full flex-wrap items-center gap-1 rounded-[8px] border border-[#e5e1da] bg-white p-1 dark:border-[#24282c] dark:bg-[#16191c]"
         >
           {SOURCE_TABS.map((t, i) => (
             <button
@@ -259,7 +259,7 @@ export function SourcesDirectory({
             </button>
           ))}
         </div>
-        <p className="whitespace-nowrap text-xs font-medium text-[#8b867e] dark:text-[#9a958c]">
+        <p className="min-w-0 text-xs font-medium text-[#8b867e] sm:whitespace-nowrap dark:text-[#9a958c]">
           Time spent today: {timeSpent} - The more you apply, the higher your
           chances
         </p>

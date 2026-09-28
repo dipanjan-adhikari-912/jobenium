@@ -89,7 +89,7 @@ export function SearchControlPanel({
           aria-hidden
           className="absolute inset-0 -z-10 bg-gradient-to-b from-black/50 via-black/35 to-black/60"
         />
-        <div className="flex h-full flex-col items-center gap-2 pt-4">
+        <div className="flex h-full flex-row items-center justify-between gap-2 px-4 py-3 lg:flex-col lg:items-center lg:justify-start lg:px-0 lg:py-4">
           <button
             type="button"
             onClick={onHome}

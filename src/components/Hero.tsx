@@ -22,7 +22,7 @@ export function Hero({
   onSearchEngineChange,
 }: HeroProps) {
   return (
-    <section className="relative isolate flex min-h-[calc(100svh-1rem)] flex-col items-center justify-center overflow-hidden rounded-3xl px-6 py-14 sm:px-10 sm:py-16">
+    <section className="relative isolate flex min-h-[calc(100svh-1rem)] flex-col items-center justify-center overflow-hidden rounded-3xl px-6 py-8 sm:px-10 sm:py-16">
       <div
         aria-hidden
         className="absolute inset-0 -z-20 bg-gradient-to-br from-sky-700 via-slate-800 to-emerald-950"
@@ -50,7 +50,7 @@ export function Hero({
           className="h-10 w-auto rounded-[14px] drop-shadow-[0_8px_24px_rgba(0,0,0,0.35)] sm:h-11"
         />
 
-        <h1 className="pointer-events-auto mt-8 select-text text-center font-heading text-[clamp(20px,4.34vw,91px)] font-semibold leading-[0.954] tracking-[-0.04em] text-[#d9d9d9] sm:mt-9">
+        <h1 className="pointer-events-auto mt-6 select-text text-center font-heading text-[clamp(20px,4.34vw,91px)] font-semibold leading-[0.954] tracking-[-0.04em] text-[#d9d9d9] sm:mt-9">
           <span className="block">The internet is full of jobs.</span>
           <span className="block">Find yours.</span>
         </h1>
@@ -59,7 +59,7 @@ export function Hero({
           No sign-up needed. Free forever.
         </p>
 
-        <div className="pointer-events-auto relative mt-10 w-full max-w-3xl sm:mt-12">
+        <div className="pointer-events-auto relative mt-6 w-full max-w-3xl sm:mt-12">
           {children}
         </div>
       </div>
