@@ -60,6 +60,10 @@ Baseline: **0 lint errors, exactly 3 pre-existing warnings** (`ui/button.tsx`,
 
 ## Misc
 
+- The "Your Job Board Here" promo card (`src/components/AdvertiseCard.tsx`) is
+  deliberately **not rendered** in the grid while the audience is being grown —
+  do not re-add it without being asked. The component and its CSS
+  (`meshGradient.css`) stay in the tree so it is a one-line re-enable.
 - Dark mode is scoped to the results/loading views (`.dark` class on those roots only);
   the landing page is always light.
 - `Search {n} Sources` count reflects the active location/mode filter

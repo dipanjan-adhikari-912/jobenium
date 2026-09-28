@@ -6,7 +6,6 @@ import { type Source } from "@/data/sources";
 import { SOURCE_TABS } from "@/data/sourceTabs";
 import { type LinkBehavior } from "@/lib/storage";
 import { getLocationLabel, splitLocation, toggleLocation, countryBadgeLabel } from "@/lib/locations";
-import { AdvertiseCard } from "@/components/AdvertiseCard";
 
 function monogramOf(name: string): string {
   const words = name
@@ -334,7 +333,9 @@ export function SourcesDirectory({
               onDismissTileTip={onDismissTileTip}
             />
           ))}
-          <AdvertiseCard key="__advertise" />
+          {/* Promo card intentionally not rendered while growing the audience.
+              To bring it back, re-add the import and
+              `<AdvertiseCard key="__advertise" />` as the last grid child. */}
         </div>
       )}
     </div>
