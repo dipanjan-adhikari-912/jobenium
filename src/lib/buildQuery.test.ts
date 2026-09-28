@@ -174,6 +174,119 @@ describe("buildGoogleUrl", () => {
     expect(url).toContain(encodeURIComponent("-jobgether"));
     expect(url).toContain("tbs=" + encodeURIComponent("qdr:w"));
   });
+
+  it("appends remote location term", () => {
+    const url = buildGoogleUrl({
+      ...base,
+      title: "Designer",
+      location: "remote",
+      sites: ["greenhouse.io"],
+    });
+    expect(url).toContain(encodeURIComponent('"Designer" site:greenhouse.io remote'));
+  });
+
+  it("appends a single-word country", () => {
+    const url = buildGoogleUrl({
+      ...base,
+      title: "Designer",
+      location: "india",
+      sites: ["greenhouse.io"],
+    });
+    expect(url).toContain(encodeURIComponent('"Designer" site:greenhouse.io India'));
+  });
+
+  it("quotes multi-word countries", () => {
+    const url = buildGoogleUrl({
+      ...base,
+      title: "Designer",
+      location: "united-states",
+      sites: ["greenhouse.io"],
+    });
+    expect(url).toContain(
+      encodeURIComponent('"Designer" site:greenhouse.io "United States"'),
+    );
+  });
+
+  it("expands a region into an OR clause of its countries", () => {
+    const url = buildGoogleUrl({
+      ...base,
+      title: "Designer",
+      location: "apac",
+      sites: ["greenhouse.io"],
+    });
+    expect(url).toContain(
+      encodeURIComponent(
+        '"Designer" site:greenhouse.io (India OR Singapore OR Japan OR "South Korea"',
+      ),
+    );
+    expect(url).toContain(encodeURIComponent("Philippines)"));
+  });
+
+  it("omits location clause for 'any' or missing location", () => {
+    const withAny = buildGoogleUrl({
+      ...base,
+      title: "Designer",
+      location: "any",
+      sites: ["greenhouse.io"],
+    });
+    const without = buildGoogleUrl({
+      ...base,
+      title: "Designer",
+      sites: ["greenhouse.io"],
+    });
+    expect(withAny).toBe(without);
+  });
+
+  it("places location between site clause and keywords", () => {
+    const url = buildGoogleUrl({
+      ...base,
+      title: "Designer",
+      keywords: "senior",
+      location: "germany",
+      sites: ["greenhouse.io"],
+    });
+    expect(url).toContain(
+      encodeURIComponent('"Designer" site:greenhouse.io Germany senior'),
+    );
+  });
+
+  it("appends a bare hybrid mode term", () => {
+    const url = buildGoogleUrl({
+      ...base,
+      title: "Designer",
+      location: "hybrid",
+      sites: ["greenhouse.io"],
+    });
+    expect(url).toContain(
+      encodeURIComponent('"Designer" site:greenhouse.io hybrid'),
+    );
+  });
+
+  it("ORs multiple modes and combines them with a country", () => {
+    const url = buildGoogleUrl({
+      ...base,
+      title: "Designer",
+      location: "hybrid,remote,germany",
+      sites: ["greenhouse.io"],
+    });
+    expect(url).toContain(
+      encodeURIComponent(
+        '"Designer" site:greenhouse.io (remote OR hybrid) Germany',
+      ),
+    );
+  });
+
+  it("maps in-office to the office term", () => {
+    const url = buildGoogleUrl({
+      ...base,
+      title: "Designer",
+      location: "in-office",
+      sites: ["greenhouse.io"],
+    });
+    expect(url).toContain(
+      encodeURIComponent('"Designer" site:greenhouse.io office'),
+    );
+  });
 });
 
 describe("buildLinkedInDirectUrl", () => {

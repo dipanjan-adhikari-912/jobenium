@@ -1,14 +1,15 @@
 import { Button } from "@/components/ui/button";
 import { type RecentSearch } from "@/lib/storage";
 import { getTimeFilter } from "@/lib/timeFilters";
-import { Clock, ArrowRight } from "lucide-react";
+import { Clock, Search } from "lucide-react";
 
 interface RecentSearchesProps {
   recents: RecentSearch[];
   onSelect: (recent: RecentSearch) => void;
+  onClear: () => void;
 }
 
-export function RecentSearches({ recents, onSelect }: RecentSearchesProps) {
+export function RecentSearches({ recents, onSelect, onClear }: RecentSearchesProps) {
   if (recents.length === 0) return null;
 
   return (
@@ -23,16 +24,23 @@ export function RecentSearches({ recents, onSelect }: RecentSearchesProps) {
             key={`${r.title}-${i}`}
             variant="outline"
             size="sm"
-            className="h-8 text-xs"
+            className="recent-pill h-8 px-[10.57px] text-xs font-medium"
             onClick={() => onSelect(r)}
           >
             {r.title}
-            <span className="text-[var(--muted-foreground)]">
-              &middot; {getTimeFilter(r.timeFilter).label}
-            </span>
-            <ArrowRight className="h-3 w-3" />
+            <span>&middot; {getTimeFilter(r.timeFilter).label}</span>
+            <Search className="size-4 text-white" />
           </Button>
         ))}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="recent-pill h-8 px-[10.57px] text-xs font-medium"
+          onClick={onClear}
+        >
+          Clear all
+        </Button>
       </div>
     </div>
   );

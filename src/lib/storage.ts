@@ -1,3 +1,8 @@
+import {
+  type SearchEngineId,
+  DEFAULT_SEARCH_ENGINE,
+} from "@/data/searchEngines";
+
 export type LinkBehavior = "new-tab" | "reuse-tab" | "same-tab";
 
 function read<T>(key: string, fallback: T): T {
@@ -24,6 +29,23 @@ export function getLinkBehavior(): LinkBehavior {
 }
 export function setLinkBehavior(v: LinkBehavior): void {
   write("jobenium:linkBehavior", v);
+}
+
+// Search engine
+export function getSearchEngine(): SearchEngineId {
+  return read<SearchEngineId>("jobenium:searchEngine", DEFAULT_SEARCH_ENGINE);
+}
+export function setSearchEngine(v: SearchEngineId): void {
+  write("jobenium:searchEngine", v);
+}
+
+// Theme
+export type Theme = "light" | "dark";
+export function getTheme(): Theme {
+  return read<Theme>("jobenium:theme", "light");
+}
+export function setTheme(v: Theme): void {
+  write("jobenium:theme", v);
 }
 
 // Collapsed groups
@@ -65,6 +87,10 @@ export function addRecentSearch(s: RecentSearch): void {
   write("jobenium:recentSearches", all.slice(0, 8));
 }
 
+export function clearRecentSearches(): void {
+  write("jobenium:recentSearches", []);
+}
+
 // Custom sources
 export interface CustomSource {
   id: string;
@@ -96,24 +122,19 @@ export function removeCustomSource(id: string): void {
   setCustomSources(getCustomSources().filter((s) => s.id !== id));
 }
 
-// Theme
-export function getTheme(): "light" | "dark" | null {
+// Tile hover tip (permanent until cleared)
+export function getTileTipDismissed(): boolean {
   try {
-    const v = localStorage.getItem("theme");
-    if (v === "light" || v === "dark") return v;
-  } catch {}
-  return null;
+    sessionStorage.removeItem("jobenium:tileTipDismissed");
+    return localStorage.getItem("jobenium:tileTipDismissed") === "1";
+  } catch {
+    return false;
+  }
 }
-export function setTheme(v: "light" | "dark"): void {
+export function setTileTipDismissed(): void {
   try {
-    localStorage.setItem("theme", v);
-  } catch {}
-}
-
-// Tip dismissed
-export function getTipDismissed(): boolean {
-  return read<boolean>("jobenium:tipDismissed", false);
-}
-export function setTipDismissed(): void {
-  write("jobenium:tipDismissed", true);
+    localStorage.setItem("jobenium:tileTipDismissed", "1");
+  } catch {
+    // storage unavailable
+  }
 }

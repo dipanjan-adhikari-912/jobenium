@@ -98,7 +98,8 @@ src/
 │   ├── RecentSearches.tsx
 │   └── ThemeToggle.tsx
 ├── data/
-│   └── sources.ts   # all job sources, typed
+│   ├── sources.csv   # all job boards — single source of truth
+│   └── sources.ts    # parses the CSV into typed Source objects
 ├── hooks/
 │   ├── useSearchState.ts   # URL sync
 │   ├── useSettings.ts      # persisted settings

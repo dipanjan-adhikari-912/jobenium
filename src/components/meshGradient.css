@@ -1,0 +1,80 @@
+/* Warm brand mesh gradient (Jobenium orange family) for the Advertise button.
+   Includes the heartbeat pulse keyframes usage — @keyframes heartbeat lives in button-04.css. */
+.mesh-gradient {
+  background-image:
+    radial-gradient(at 0% 0%, #ff9a3c 0%, transparent 55%),
+    radial-gradient(at 100% 0%, #ff5f6d 0%, transparent 55%),
+    radial-gradient(at 100% 100%, #ffc371 0%, transparent 55%),
+    radial-gradient(at 0% 100%, #ff8c42 0%, transparent 55%),
+    radial-gradient(at 50% 55%, #ff6a00 0%, transparent 65%);
+  background-size: 200% 200%;
+  color: #fff;
+}
+
+/* Combined animation: pulse ring (button-04) + drifting gradient.
+   Two `animation` shorthands on one element would override each other, hence one class. */
+.mesh-gradient-heartbeat {
+  animation:
+    heartbeat 2s ease-in-out infinite,
+    mesh-move 6s ease-in-out infinite alternate;
+}
+
+@keyframes mesh-move {
+  0% {
+    background-position:
+      0% 0%,
+      100% 0%,
+      100% 100%,
+      0% 100%,
+      50% 50%;
+  }
+  100% {
+    background-position:
+      100% 100%,
+      0% 100%,
+      0% 0%,
+      100% 0%,
+      50% 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mesh-gradient-heartbeat {
+    animation: none;
+  }
+}
+
+/* Promo card fill: same warm mesh, drifting only (no heartbeat). */
+.mesh-gradient-drift {
+  animation: mesh-move 6s ease-in-out infinite alternate;
+}
+
+/* Running gradient stroke (3px) for the "Your Job Board Here" card. */
+.advertise-border {
+  background-image: linear-gradient(
+    110deg,
+    #ff6a00,
+    #ff5f6d,
+    #ff9a3c,
+    #ff5f6d,
+    #ff6a00
+  );
+  background-size: 300% 100%;
+  animation: advertise-border-run 3s linear infinite;
+}
+
+@keyframes advertise-border-run {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 300% 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mesh-gradient-drift,
+  .advertise-border {
+    animation: none;
+  }
+}

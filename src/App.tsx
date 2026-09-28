@@ -1,21 +1,37 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
+import { cn } from "cn";
 import { Button } from "@/components/ui/button";
-import { SearchForm } from "@/components/SearchForm";
-import { SearchSummary } from "@/components/SearchSummary";
-import { SourceGroup as SourceGroupComponent } from "@/components/SourceGroup";
+import { SearchToolbar } from "@/components/SearchToolbar";
+import { Hero } from "@/components/Hero";
+import { SearchLoader, SEARCH_TRANSITION_MS } from "@/components/SearchLoader";
+import { SearchControlPanel } from "@/components/SearchControlPanel";
+import { SourcesDirectory } from "@/components/SourcesDirectory";
+import { ResultsFooter } from "@/components/ResultsFooter";
 import { SettingsPopover } from "@/components/SettingsPopover";
 import { RecentSearches } from "@/components/RecentSearches";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { AddSourceForm } from "@/components/AddSourceForm";
-import { useSearchState } from "@/hooks/useSearchState";
+import { useSearchState, stateToQs } from "@/hooks/useSearchState";
 import { useSettings } from "@/hooks/useSettings";
 import { useVisited } from "@/hooks/useVisited";
 import { useRecent } from "@/hooks/useRecent";
 import { useCustomSources } from "@/hooks/useCustomSources";
-import { sources, SOURCE_GROUPS, type Source, type SourceGroup } from "@/data/sources";
-import { buildGoogleUrl } from "@/lib/buildQuery";
-import { getTipDismissed, setTipDismissed } from "@/lib/storage";
-import { X } from "lucide-react";
+import { useTheme } from "@/hooks/useTheme";
+import { useTimeSpentToday } from "@/hooks/useTimeSpentToday";
+import { sources, type Source } from "@/data/sources";
+import { SOURCE_TABS, sourcesInTab } from "@/data/sourceTabs";
+import { buildEngineUrl } from "@/lib/buildQuery";
+import { applyLocation } from "@/lib/sourceMatch";
+import { getTileTipDismissed, setTileTipDismissed } from "@/lib/storage";
+import { Sun, Moon } from "lucide-react";
+import logoAnimated from "../assets/logo-animated (1).svg";
+
+type Page = "landing" | "loading" | "results";
+
+const MY_BOARDS_TAB = SOURCE_TABS.length - 1;
+
+function pageFromHash(): Page {
+  return window.location.hash.startsWith("#/results") ? "loading" : "landing";
+}
 
 function App() {
   const [search, updateSearch] = useSearchState();
@@ -23,15 +39,39 @@ function App() {
   const visited = useVisited();
   const recent = useRecent();
   const { customSources, add: addCustom, remove: removeCustom } = useCustomSources();
-  const [started, setStarted] = useState(!!search.title);
-  const [tipDismissed, setTipDismissedState] = useState(getTipDismissed);
+  const { theme, toggleTheme } = useTheme();
+  const [page, setPage] = useState<Page>(pageFromHash);
+  const [tileTipDismissed, setTileTipDismissedState] = useState(getTileTipDismissed);
   const [focusedSourceIdx, setFocusedSourceIdx] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState(0);
+  const [panelOpen, setPanelOpen] = useState(true);
+  const timeSpent = useTimeSpentToday();
+
+  // Loader transition: entering "loading" starts the timer; any page change cancels it
+  useEffect(() => {
+    if (page !== "loading") return;
+    const id = window.setTimeout(() => setPage("results"), SEARCH_TRANSITION_MS);
+    return () => window.clearTimeout(id);
+  }, [page]);
+
+  // Back/forward and manual hash edits are instant (no loader)
+  useEffect(() => {
+    const syncPage = () => {
+      setPage(window.location.hash.startsWith("#/results") ? "results" : "landing");
+    };
+    window.addEventListener("popstate", syncPage);
+    window.addEventListener("hashchange", syncPage);
+    return () => {
+      window.removeEventListener("popstate", syncPage);
+      window.removeEventListener("hashchange", syncPage);
+    };
+  }, []);
 
   const allSources = useMemo(() => {
     const custom: Source[] = customSources.map((cs) => ({
       id: cs.id,
       name: cs.name,
-      group: "My boards" as SourceGroup,
+      group: "My boards" as const,
       sites: cs.sites,
       suffix: cs.suffix,
       custom: true,
@@ -39,10 +79,19 @@ function App() {
     return [...sources, ...custom];
   }, [customSources]);
 
+  // Location/mode filter + priority/ranking sort (drives grid and heading count)
+  const locatedSources = useMemo(
+    () => applyLocation(allSources, search.location),
+    [allSources, search.location],
+  );
+
   // Get all visible (non-disabled) sources
-  const visibleSources = allSources.filter(
+  const visibleSources = locatedSources.filter(
     (s: Source) => !settings.disabledSources.includes(s.id),
   );
+
+  // Keyboard navigation operates within the active tab
+  const tabSources = sourcesInTab(visibleSources, activeTab);
 
   const getUrl = useCallback(
     (source: Source) => {
@@ -52,20 +101,34 @@ function App() {
           timeFilterId: search.timeFilter,
         });
       }
-      return buildGoogleUrl({
+      if (source.sourceType === "public_portal" && source.sourceUrl) {
+        return source.sourceUrl;
+      }
+      return buildEngineUrl(settings.searchEngine, {
         title: search.title,
         keywords: search.keywords,
         excludes: search.excludes,
         timeFilterId: search.timeFilter,
+        location: search.location,
         sites: source.sites,
         suffix: source.suffix,
       });
     },
-    [search],
+    [search, settings.searchEngine],
   );
 
+  const enterResults = (s: typeof search) => {
+    const qs = stateToQs(s);
+    window.history.pushState(null, "", `${qs ? `?${qs}` : ""}#/results`);
+    setPage("loading");
+  };
+
+  const enterLanding = () => {
+    window.history.pushState(null, "", "#/");
+    setPage("landing");
+  };
+
   const handleSubmit = () => {
-    setStarted(true);
     recent.addRecent({
       title: search.title,
       keywords: search.keywords,
@@ -74,23 +137,24 @@ function App() {
     });
     visited.resetVisited();
     setFocusedSourceIdx(null);
+    enterResults(search);
   };
 
   const handleEdit = () => {
-    setStarted(false);
+    enterLanding();
   };
 
   const handleSelectRecent = (r: { title: string; keywords: string; excludes: string; timeFilter: string }) => {
     updateSearch(r);
-    setStarted(true);
     recent.addRecent(r);
     visited.resetVisited();
     setFocusedSourceIdx(null);
+    enterResults({ ...search, ...r });
   };
 
   // Keyboard navigation
   useEffect(() => {
-    if (!started) return;
+    if (page !== "results") return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
@@ -98,7 +162,7 @@ function App() {
       if (e.key === "j") {
         e.preventDefault();
         setFocusedSourceIdx((prev) =>
-          prev === null ? 0 : Math.min(prev + 1, visibleSources.length - 1),
+          prev === null ? 0 : Math.min(prev + 1, tabSources.length - 1),
         );
       } else if (e.key === "k") {
         e.preventDefault();
@@ -107,7 +171,7 @@ function App() {
         );
       } else if (e.key === "Enter" && focusedSourceIdx !== null) {
         e.preventDefault();
-        const source = visibleSources[focusedSourceIdx];
+        const source = tabSources[focusedSourceIdx];
         if (source) {
           visited.markVisited(source.id);
           const url = getUrl(source);
@@ -125,121 +189,159 @@ function App() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [started, focusedSourceIdx, visibleSources, getUrl, visited, settings.linkBehavior]);
+  }, [page, focusedSourceIdx, tabSources, getUrl, visited, settings.linkBehavior]);
+
+  if (page === "landing") {
+    return (
+      <div className="min-h-screen bg-[#e6e1dc] p-2">
+        <Hero
+          linkBehavior={settings.linkBehavior}
+          onLinkBehaviorChange={settings.updateLinkBehavior}
+          searchEngine={settings.searchEngine}
+          onSearchEngineChange={settings.updateSearchEngine}
+        >
+          <SearchToolbar
+            title={search.title}
+            keywords={search.keywords}
+            excludes={search.excludes}
+            timeFilter={search.timeFilter}
+            location={search.location}
+            onChange={updateSearch}
+            onSubmit={handleSubmit}
+          />
+          <div className="mt-5">
+            <RecentSearches
+              recents={recent.recents}
+              onSelect={handleSelectRecent}
+              onClear={recent.clearRecent}
+            />
+          </div>
+        </Hero>
+      </div>
+    );
+  }
+
+  if (page === "loading") {
+    return (
+      <div
+        className={cn(
+          "flex min-h-screen flex-col items-center justify-center bg-[var(--background)] px-4",
+          theme === "dark" && "dark",
+        )}
+      >
+        <img src={logoAnimated} alt="Jobenium" className="mb-7 size-24" />
+        <SearchLoader />
+      </div>
+    );
+  }
+
+  const focusedId =
+    focusedSourceIdx !== null ? (tabSources[focusedSourceIdx]?.id ?? null) : null;
+
+  const handleTabChange = (idx: number) => {
+    setActiveTab(idx);
+    setFocusedSourceIdx(null);
+  };
+
+  const handleLocationChange = (location: string) => {
+    updateSearch({ location });
+    setFocusedSourceIdx(null);
+  };
+
+  const handleAddBoard = (s: { name: string; sites: string[]; suffix?: string }) => {
+    addCustom(s);
+    setActiveTab(MY_BOARDS_TAB);
+    setFocusedSourceIdx(null);
+  };
+
+  const dismissTileTip = () => {
+    setTileTipDismissed();
+    setTileTipDismissedState(true);
+  };
 
   return (
-    <div className="min-h-screen bg-[var(--background)]">
-      <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6 sm:py-12">
-        {/* Header */}
-        <div className="mb-8 flex items-center justify-between">
+    <div
+      className={cn(
+        "flex min-h-screen flex-col bg-[#f7f5f1] p-2 dark:bg-[#0e1113] lg:flex-row",
+        theme === "dark" && "dark",
+      )}
+    >
+      <SearchControlPanel
+        collapsed={!panelOpen}
+        onToggleCollapsed={() => setPanelOpen((v) => !v)}
+        title={search.title}
+        keywords={search.keywords}
+        excludes={search.excludes}
+        timeFilter={search.timeFilter}
+        location={search.location}
+        onChange={updateSearch}
+        onSubmit={handleSubmit}
+        onHome={handleEdit}
+      />
+
+      <main className="flex min-w-0 flex-1 flex-col px-5 py-7 sm:px-8 lg:px-10 lg:py-9">
+        <header className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-[var(--foreground)] sm:text-3xl">
-              Jobenium
+            <h1 className="font-heading text-3xl font-semibold tracking-[-0.03em] text-[#161B1D] dark:text-[#e8e6e1]">
+              Search {locatedSources.length} Sources
             </h1>
-            <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-              Open roles across 50+ job boards and ATS platforms
+            <p className="mt-1 text-sm text-[#8b867e] dark:text-[#9a958c]">
+              Everywhere this search can run — pick a source to open it.
             </p>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5">
+            {visited.hasVisited && (
+              <Button variant="ghost" size="sm" onClick={visited.resetVisited}>
+                Reset visited
+              </Button>
+            )}
+            <AddSourceForm onAdd={handleAddBoard} />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleTheme}
+              aria-label={
+                theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
+              }
+            >
+              {theme === "dark" ? (
+                <Sun className="h-4 w-4" />
+              ) : (
+                <Moon className="h-4 w-4" />
+              )}
+            </Button>
             <SettingsPopover
               linkBehavior={settings.linkBehavior}
               onLinkBehaviorChange={settings.updateLinkBehavior}
+              searchEngine={settings.searchEngine}
+              onSearchEngineChange={settings.updateSearchEngine}
             />
-            <ThemeToggle />
           </div>
+        </header>
+
+        <div className="mt-6 flex-1">
+          <SourcesDirectory
+            sources={locatedSources}
+            timeSpent={timeSpent}
+            location={search.location}
+            onLocationChange={handleLocationChange}
+            activeTab={activeTab}
+            onTabChange={handleTabChange}
+            getUrl={getUrl}
+            isVisited={visited.isVisited}
+            disabledSources={settings.disabledSources}
+            focusedId={focusedId}
+            linkBehavior={settings.linkBehavior}
+            onVisit={visited.markVisited}
+            onToggleSource={settings.toggleSource}
+            onDeleteSource={removeCustom}
+            showTileTip={!tileTipDismissed}
+            onDismissTileTip={dismissTileTip}
+          />
         </div>
 
-        {/* Form or Summary */}
-        {!started ? (
-          <>
-            <SearchForm
-              title={search.title}
-              keywords={search.keywords}
-              excludes={search.excludes}
-              timeFilter={search.timeFilter}
-              onChange={updateSearch}
-              onSubmit={handleSubmit}
-            />
-            <div className="mt-6">
-              <RecentSearches recents={recent.recents} onSelect={handleSelectRecent} />
-            </div>
-          </>
-        ) : (
-          <div className="space-y-6">
-            <SearchSummary
-              title={search.title}
-              timeFilterId={search.timeFilter}
-              onEdit={handleEdit}
-            />
-
-            {/* Tip */}
-            {!tipDismissed && (
-              <div className="flex items-center justify-between rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] px-4 py-3 text-xs text-[var(--muted-foreground)]">
-                <span>
-                  Tip: Right-click a source &rarr; &ldquo;Open link in split view&rdquo; to browse two sources at once.
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTipDismissed();
-                    setTipDismissedState(true);
-                  }}
-                  className="ml-2 shrink-0 hover:text-[var(--foreground)]"
-                  aria-label="Dismiss tip"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </div>
-            )}
-
-            {/* Reset visited */}
-            {visited.hasVisited && (
-              <div className="flex justify-end">
-                <Button variant="ghost" size="sm" onClick={visited.resetVisited}>
-                  Reset visited
-                </Button>
-              </div>
-            )}
-
-            {/* Source groups */}
-            <div className="space-y-4">
-              <div className="flex justify-end">
-                <AddSourceForm onAdd={(s) => addCustom(s)} />
-              </div>
-              {SOURCE_GROUPS.map((group: SourceGroup) => {
-                const groupSources = allSources.filter((s: Source) => s.group === group);
-                if (groupSources.length === 0) return null;
-                return (
-                  <SourceGroupComponent
-                    key={group}
-                    group={group}
-                    sources={groupSources}
-                    getUrl={getUrl}
-                    isVisited={visited.isVisited}
-                    disabledSources={settings.disabledSources}
-                    collapsedGroups={settings.collapsedGroups}
-                    linkBehavior={settings.linkBehavior}
-                    onVisit={visited.markVisited}
-                    onToggleSource={settings.toggleSource}
-                    onToggleGroup={settings.toggleGroup}
-                    onDeleteSource={removeCustom}
-                  />
-                );
-              })}
-            </div>
-
-            {/* Keyboard hint */}
-            <p className="text-center text-xs text-[var(--muted-foreground)]">
-              <kbd className="rounded border border-[var(--border)] px-1.5 py-0.5 text-[10px] font-mono">j</kbd>
-              {" / "}
-              <kbd className="rounded border border-[var(--border)] px-1.5 py-0.5 text-[10px] font-mono">k</kbd>
-              {" navigate &middot; "}
-              <kbd className="rounded border border-[var(--border)] px-1.5 py-0.5 text-[10px] font-mono">Enter</kbd>
-              {" open"}
-            </p>
-          </div>
-        )}
-      </div>
+        <ResultsFooter />
+      </main>
     </div>
   );
 }
