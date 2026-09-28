@@ -74,9 +74,16 @@ describe("fetchActiveVisitors", () => {
     ).resolves.toBe(0);
   });
 
-  it("throws when the upstream query fails", async () => {
-    const fetchImpl = vi.fn().mockResolvedValue({ ok: false, status: 400, json: async () => ({}) });
-    await expect(fetchActiveVisitors({ ...baseOpts, fetchImpl })).rejects.toThrow(/400/);
+  it("throws with the upstream detail so the bad parameter is visible", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => ({}),
+      text: async () => '{"error":"invalid value for by"}',
+    });
+    await expect(fetchActiveVisitors({ ...baseOpts, fetchImpl })).rejects.toThrow(
+      /400.*invalid value for by/,
+    );
   });
 });
 
@@ -157,7 +164,7 @@ describe("active-visitors handler", () => {
     process.env.VERCEL_PROJECT_ID = "prj_1";
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({ ok: false, status: 401, json: async () => ({}) }),
+      vi.fn().mockResolvedValue({ ok: false, status: 401, json: async () => ({}), text: async () => 'unauthorized' }),
     );
     vi.spyOn(console, "error").mockImplementation(() => {});
 

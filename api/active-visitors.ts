@@ -14,10 +14,14 @@ const API = "https://api.vercel.com/v1/query/web-analytics";
 const WINDOW_MINUTES = 60;
 const CACHE_TTL_MS = 60_000;
 
-type FetchLike = (input: string, init?: { headers?: Record<string, string> }) => Promise<{
+type FetchLike = (
+  input: string,
+  init?: { headers?: Record<string, string> },
+) => Promise<{
   ok: boolean;
   status: number;
   json: () => Promise<unknown>;
+  text: () => Promise<string>;
 }>;
 
 interface QueryOptions {
@@ -65,7 +69,12 @@ export async function fetchActiveVisitors(opts: QueryOptions): Promise<number> {
     headers: { Authorization: `Bearer ${opts.token}` },
   });
   if (!res.ok) {
-    throw new Error(`vercel analytics responded ${res.status}`);
+    // Log the upstream message (truncated) — it names the offending parameter.
+    // The token travels in a header, so it can never appear in the body.
+    const detail = await res.text().catch(() => "");
+    throw new Error(
+      `vercel analytics responded ${res.status}: ${detail.slice(0, 300)}`,
+    );
   }
   const body = (await res.json()) as { data?: AggregateRow[] };
   const rows = (body.data ?? []).filter(
