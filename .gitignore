@@ -14,6 +14,8 @@ dist-ssr
 
 # Env (e.g. VITE_CF_BEACON_TOKEN)
 .env
+.env.*
+!.env.example
 .env.*.local
 
 # Editor directories and files

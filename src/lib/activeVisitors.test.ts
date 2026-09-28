@@ -2,12 +2,24 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import handler, {
   fetchActiveVisitors,
   resetActiveVisitorsCache,
-} from "./active-visitors";
+} from "../../api/active-visitors";
 
-const NOW = new Date("2026-09-28T12:30:00.000Z");
+/**
+ * The function lives in /api and is type-checked by Vercel with its own config,
+ * so its test lives here rather than beside it (Vercel would compile anything
+ * in /api as a route). Env is mutated through the same cast the function uses,
+ * which keeps `process` out of the browser type program.
+ */
+const env = (
+  globalThis as unknown as { process: { env: Record<string, string | undefined> } }
+).process.env;
 
 function res() {
-  const state: { code: number; body: unknown } = { code: 0, body: undefined };
+  const state: {
+    code: number;
+    body: unknown;
+    headers: Record<string, string>;
+  } = { code: 0, body: undefined, headers: {} };
   const api = {
     status(code: number) {
       state.code = code;
@@ -16,8 +28,15 @@ function res() {
     json(body: unknown) {
       state.body = body;
     },
+    setHeader(name: string, value: string) {
+      state.headers[name] = value;
+    },
   };
   return { api, state };
+}
+
+function req(ip = "203.0.113.7", method = "GET") {
+  return { method, headers: { "x-forwarded-for": ip } };
 }
 
 function okFetch(payload: unknown) {
@@ -27,6 +46,8 @@ function okFetch(payload: unknown) {
     json: async () => payload,
   });
 }
+
+const NOW = new Date("2026-09-28T12:30:00.000Z");
 
 const baseOpts = {
   token: "tok",
@@ -65,7 +86,9 @@ describe("fetchActiveVisitors", () => {
   it("omits teamId for personal projects", async () => {
     const fetchImpl = okFetch({ data: [] });
     await fetchActiveVisitors({ ...baseOpts, teamId: undefined, fetchImpl });
-    expect(new URL(fetchImpl.mock.calls[0][0] as string).searchParams.has("teamId")).toBe(false);
+    expect(
+      new URL(fetchImpl.mock.calls[0][0] as string).searchParams.has("teamId"),
+    ).toBe(false);
   });
 
   it("treats a missing data array as zero visitors", async () => {
@@ -88,42 +111,50 @@ describe("fetchActiveVisitors", () => {
 });
 
 describe("active-visitors handler", () => {
-  const originalEnv = { ...process.env };
+  const original = {
+    token: env.VERCEL_TOKEN,
+    projectId: env.VERCEL_PROJECT_ID,
+    teamId: env.VERCEL_TEAM_ID,
+  };
 
   beforeEach(() => {
     resetActiveVisitorsCache();
-    delete process.env.VERCEL_TOKEN;
-    delete process.env.VERCEL_PROJECT_ID;
-    delete process.env.VERCEL_TEAM_ID;
+    delete env.VERCEL_TOKEN;
+    delete env.VERCEL_PROJECT_ID;
+    delete env.VERCEL_TEAM_ID;
   });
 
   afterEach(() => {
-    process.env.VERCEL_TOKEN = originalEnv.VERCEL_TOKEN;
-    process.env.VERCEL_PROJECT_ID = originalEnv.VERCEL_PROJECT_ID;
-    if (originalEnv.VERCEL_TEAM_ID) process.env.VERCEL_TEAM_ID = originalEnv.VERCEL_TEAM_ID;
-    else delete process.env.VERCEL_TEAM_ID;
+    resetActiveVisitorsCache();
+    if (original.token === undefined) delete env.VERCEL_TOKEN;
+    else env.VERCEL_TOKEN = original.token;
+    if (original.projectId === undefined) delete env.VERCEL_PROJECT_ID;
+    else env.VERCEL_PROJECT_ID = original.projectId;
+    if (original.teamId === undefined) delete env.VERCEL_TEAM_ID;
+    else env.VERCEL_TEAM_ID = original.teamId;
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   it("answers 503 when the token is not configured", async () => {
-    process.env.VERCEL_PROJECT_ID = "prj_1";
+    env.VERCEL_PROJECT_ID = "prj_1";
     const { api, state } = res();
-    await handler({}, api);
+    await handler(req(), api);
     expect(state.code).toBe(503);
     expect(state.body).toEqual({ error: "not_configured" });
   });
 
   it("answers 503 when the project id is missing", async () => {
-    process.env.VERCEL_TOKEN = "tok";
+    env.VERCEL_TOKEN = "tok";
     const { api, state } = res();
-    await handler({}, api);
+    await handler(req(), api);
     expect(state.code).toBe(503);
   });
 
   it("returns the visitor count when configured", async () => {
-    process.env.VERCEL_TOKEN = "tok";
-    process.env.VERCEL_PROJECT_ID = "prj_1";
-    process.env.VERCEL_TEAM_ID = "team_1";
+    env.VERCEL_TOKEN = "tok";
+    env.VERCEL_PROJECT_ID = "prj_1";
+    env.VERCEL_TEAM_ID = "team_1";
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -134,14 +165,34 @@ describe("active-visitors handler", () => {
     );
 
     const { api, state } = res();
-    await handler({}, api);
+    await handler(req(), api);
     expect(state.code).toBe(200);
     expect(state.body).toMatchObject({ visitors: 7, windowMinutes: 60 });
   });
 
+  it("lets the CDN cache the aggregate", async () => {
+    env.VERCEL_TOKEN = "tok";
+    env.VERCEL_PROJECT_ID = "prj_1";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ data: [{ visitors: 3 }] }),
+      }),
+    );
+
+    const { api, state } = res();
+    await handler(req(), api);
+    expect(state.code).toBe(200);
+    expect(state.headers["Cache-Control"]).toBe(
+      "public, max-age=60, s-maxage=60",
+    );
+  });
+
   it("serves a cached count for a minute instead of querying again", async () => {
-    process.env.VERCEL_TOKEN = "tok";
-    process.env.VERCEL_PROJECT_ID = "prj_1";
+    env.VERCEL_TOKEN = "tok";
+    env.VERCEL_PROJECT_ID = "prj_1";
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
@@ -150,26 +201,63 @@ describe("active-visitors handler", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const first = res();
-    await handler({}, first.api);
+    await handler(req(), first.api);
     const second = res();
-    await handler({}, second.api);
+    await handler(req(), second.api);
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(second.state).toMatchObject({ code: 200 });
     expect(second.state.body).toMatchObject({ visitors: 9 });
   });
 
-  it("answers 503 when the upstream is unavailable", async () => {
-    process.env.VERCEL_TOKEN = "tok";
-    process.env.VERCEL_PROJECT_ID = "prj_1";
+  it("rejects non-GET methods", async () => {
+    const { api, state } = res();
+    await handler(req("198.51.100.1", "POST"), api);
+    expect(state.code).toBe(405);
+    expect(state.headers.Allow).toBe("GET");
+  });
+
+  it("rate limits one IP and still serves another", async () => {
+    env.VERCEL_TOKEN = "tok";
+    env.VERCEL_PROJECT_ID = "prj_1";
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({ ok: false, status: 401, json: async () => ({}), text: async () => 'unauthorized' }),
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ data: [{ visitors: 1 }] }),
+      }),
+    );
+
+    const codes: number[] = [];
+    for (let i = 0; i < 32; i++) {
+      const { api, state } = res();
+      await handler(req("198.51.100.9"), api);
+      codes.push(state.code);
+    }
+    expect(codes[0]).toBe(200);
+    expect(codes.filter((c) => c === 429)).toHaveLength(2);
+
+    const other = res();
+    await handler(req("198.51.100.10"), other.api);
+    expect(other.state.code).toBe(200);
+  });
+
+  it("answers 503 when the upstream is unavailable", async () => {
+    env.VERCEL_TOKEN = "tok";
+    env.VERCEL_PROJECT_ID = "prj_1";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        json: async () => ({}),
+        text: async () => "unauthorized",
+      }),
     );
     vi.spyOn(console, "error").mockImplementation(() => {});
 
     const { api, state } = res();
-    await handler({}, api);
+    await handler(req(), api);
     expect(state.code).toBe(503);
     expect(state.body).toEqual({ error: "upstream_unavailable" });
   });

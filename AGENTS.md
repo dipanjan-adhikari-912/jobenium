@@ -82,3 +82,14 @@ Baseline: **0 lint errors, exactly 3 pre-existing warnings** (`ui/button.tsx`,
   `VERCEL_PROJECT_ID`/`VERCEL_TEAM_ID` are injected by the platform). The counter
   hides itself when unconfigured or when the query fails, so never restore a
   synthetic/fake number. `tsconfig.api.json` typechecks `api/` for `tsc -b`.
+- `api/` is type-checked by Vercel with **its own** config (node16 resolution, no
+  ambient node types), so files there must compile with **no imports** and must
+  not reference `process`/`node:` — read env through the `globalThis` cast in
+  `api/active-visitors.ts`. Tests for the function live in
+  `src/lib/activeVisitors.test.ts`, never in `api/`, because Vercel compiles
+  every file in `api/` as a route.
+- Security headers live in `vercel.json` (CSP, nosniff, frame-deny, referrer,
+  permissions). The CSP's `img-src` must allow `https://*.gstatic.com` too —
+  `google.com/s2/favicons` redirects there. Validate CSP changes against a local
+  static server before shipping; previews sit behind Deployment Protection, so
+  they cannot be curled.
