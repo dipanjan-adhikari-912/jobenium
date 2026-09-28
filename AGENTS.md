@@ -66,3 +66,8 @@ Baseline: **0 lint errors, exactly 3 pre-existing warnings** (`ui/button.tsx`,
   (`locatedSources.length`); unfiltered it equals 273 + user custom sources.
 - The loader stays for `SEARCH_TRANSITION_MS` (5000 ms) = one full loop of
   `assets/logo-animated (1).svg`.
+- Clicking the wordmark on the landing page cycles the backdrop photo
+  (`src/data/backgrounds.ts`, 5 images, wraps around) with a 700 ms crossfade
+  (`BackdropImage`); the index persists in `jobenium:backdrop` and the same image
+  is shown in the results-page panel. Keep `BACKDROP_FADE_MS` in sync with the
+  layer `duration-700`.

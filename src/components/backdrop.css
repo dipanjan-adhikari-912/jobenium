@@ -1,0 +1,10 @@
+/* Fade used by BackdropImage when the backdrop photo changes.
+   Duration must stay in sync with BACKDROP_FADE_MS (src/data/backgrounds.ts). */
+@keyframes backdrop-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

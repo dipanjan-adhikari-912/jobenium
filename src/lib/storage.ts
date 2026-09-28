@@ -2,6 +2,7 @@ import {
   type SearchEngineId,
   DEFAULT_SEARCH_ENGINE,
 } from "@/data/searchEngines";
+import { BACKDROP_COUNT } from "@/data/backgrounds";
 
 export type LinkBehavior = "new-tab" | "reuse-tab" | "same-tab";
 
@@ -137,4 +138,13 @@ export function setTileTipDismissed(): void {
   } catch {
     // storage unavailable
   }
+}
+
+// Backdrop photo (index into BACKDROPS, cycled by clicking the wordmark)
+export function getBackdropIndex(): number {
+  const v = read<number>("jobenium:backdrop", 0);
+  return Number.isInteger(v) && v >= 0 && v < BACKDROP_COUNT ? v : 0;
+}
+export function setBackdropIndex(i: number): void {
+  write("jobenium:backdrop", i);
 }

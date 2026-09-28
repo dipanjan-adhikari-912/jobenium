@@ -17,11 +17,12 @@ import {
 } from "@tabler/icons-react";
 import wordmark from "../../assets/wordmark_onwhite.svg";
 import logo32 from "../../assets/32.svg";
-import bgImage from "../../assets/bg-1.jpg";
+import { BackdropImage } from "@/components/BackdropImage";
 import { PanelLeftClose, PanelLeftOpen, Flame } from "lucide-react";
 import { getTimeFilter, TIME_FILTERS } from "@/lib/timeFilters";
 import { getLocationLabel } from "@/lib/locations";
 import { LocationPicker } from "@/components/LocationPicker";
+import { type BackdropState } from "@/hooks/useBackdrop";
 
 interface SearchControlPanelProps {
   collapsed: boolean;
@@ -40,6 +41,7 @@ interface SearchControlPanelProps {
   }) => void;
   onSubmit: () => void;
   onHome: () => void;
+  backdrop: BackdropState;
 }
 
 const glassField =
@@ -67,6 +69,7 @@ export function SearchControlPanel({
   onChange,
   onSubmit,
   onHome,
+  backdrop,
 }: SearchControlPanelProps) {
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -76,18 +79,10 @@ export function SearchControlPanel({
   if (collapsed) {
     return (
       <aside className="relative isolate w-full shrink-0 overflow-hidden rounded-3xl lg:sticky lg:top-2 lg:h-[calc(100svh-1rem)] lg:w-12">
+        <BackdropImage image={backdrop.image} outgoing={backdrop.outgoing} />
         <div
           aria-hidden
-          className="absolute inset-0 -z-20 bg-gradient-to-br from-sky-700 via-slate-800 to-emerald-950"
-        />
-        <div
-          aria-hidden
-          className="absolute inset-0 -z-10 scale-110 bg-cover bg-center blur-[3px]"
-          style={{ backgroundImage: `url(${bgImage})` }}
-        />
-        <div
-          aria-hidden
-          className="absolute inset-0 -z-10 bg-gradient-to-b from-black/50 via-black/35 to-black/60"
+          className="absolute inset-0 -z-10 bg-gradient-to-b from-black/55 via-black/40 to-black/60"
         />
         <div className="flex h-full flex-row items-center justify-between gap-2 px-4 py-3 lg:flex-col lg:items-center lg:justify-start lg:px-0 lg:py-4">
           <button
@@ -114,19 +109,11 @@ export function SearchControlPanel({
   }
 
   return (
-      <aside className="relative isolate w-full shrink-0 overflow-hidden rounded-3xl lg:sticky lg:top-2 lg:h-[calc(100svh-1rem)] lg:w-[400px]">
+    <aside className="relative isolate w-full shrink-0 overflow-hidden rounded-3xl lg:sticky lg:top-2 lg:h-[calc(100svh-1rem)] lg:w-[400px]">
+      <BackdropImage image={backdrop.image} outgoing={backdrop.outgoing} />
       <div
         aria-hidden
-        className="absolute inset-0 -z-20 bg-gradient-to-br from-sky-700 via-slate-800 to-emerald-950"
-      />
-      <div
-        aria-hidden
-        className="absolute inset-0 -z-10 scale-110 bg-cover bg-center blur-[3px]"
-        style={{ backgroundImage: `url(${bgImage})` }}
-      />
-      <div
-        aria-hidden
-        className="absolute inset-0 -z-10 bg-gradient-to-b from-black/50 via-black/35 to-black/60"
+        className="absolute inset-0 -z-10 bg-gradient-to-b from-black/55 via-black/40 to-black/60"
       />
 
       <div className="flex h-full flex-col gap-7 overflow-y-auto p-6 sm:p-8">

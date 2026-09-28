@@ -17,6 +17,7 @@ import { useRecent } from "@/hooks/useRecent";
 import { useCustomSources } from "@/hooks/useCustomSources";
 import { useTheme } from "@/hooks/useTheme";
 import { useTimeSpentToday } from "@/hooks/useTimeSpentToday";
+import { useBackdrop } from "@/hooks/useBackdrop";
 import { sources, type Source } from "@/data/sources";
 import { SOURCE_TABS, sourcesInTab } from "@/data/sourceTabs";
 import { buildEngineUrl } from "@/lib/buildQuery";
@@ -46,6 +47,7 @@ function App() {
   const [activeTab, setActiveTab] = useState(0);
   const [panelOpen, setPanelOpen] = useState(true);
   const timeSpent = useTimeSpentToday();
+  const { backdrop, nextBackdrop } = useBackdrop();
 
   // Loader transition: entering "loading" starts the timer; any page change cancels it
   useEffect(() => {
@@ -197,6 +199,8 @@ function App() {
         <Hero
           linkBehavior={settings.linkBehavior}
           onLinkBehaviorChange={settings.updateLinkBehavior}
+          backdrop={backdrop}
+          onNextBackdrop={nextBackdrop}
           searchEngine={settings.searchEngine}
           onSearchEngineChange={settings.updateSearchEngine}
         >
@@ -277,6 +281,7 @@ function App() {
         onChange={updateSearch}
         onSubmit={handleSubmit}
         onHome={handleEdit}
+        backdrop={backdrop}
       />
 
       <main className="flex min-w-0 flex-1 flex-col px-5 py-7 sm:px-8 lg:px-10 lg:py-9">
