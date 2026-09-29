@@ -1,5 +1,6 @@
 import { useActiveVisitors } from "@/hooks/useActiveVisitors";
 import { MadeBy } from "@/components/MadeBy";
+import { sources } from "@/data/sources";
 
 export function ResultsFooter() {
   const visitors = useActiveVisitors();
@@ -16,7 +17,15 @@ export function ResultsFooter() {
         </span>
       )}
 
-      <MadeBy />
+      <span className="flex items-center gap-3">
+        <a
+          href="/sources.html"
+          className="underline-offset-2 hover:underline"
+        >
+          Browse all {sources.length.toLocaleString("en-US")} sources
+        </a>
+        <MadeBy />
+      </span>
     </footer>
   );
 }

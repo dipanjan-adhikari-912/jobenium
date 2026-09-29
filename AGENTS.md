@@ -40,6 +40,46 @@
 | `focus` | no | raw focus text (informational) |
 | `source_url` | no | direct http(s) link — used as the card URL for `source_type=public_portal` only |
 
+## AI/SEO content is generated at build time, never committed
+
+`scripts/generate-ai-content.mjs` runs from the `build` script **after** `vite build`
+and writes only into `dist/` (which is gitignored). It re-parses
+`src/data/sources.csv` with its own parser that must stay byte-compatible with
+`src/lib/csv.ts`; `scripts/generate-ai-content.test.ts` asserts parity against the
+real parser and against `sources`, so the two can never drift silently.
+
+Artifacts it produces, all derived from the CSV:
+
+| file | purpose |
+|------|---------|
+| `dist/sources.html` | crawlable, human-readable catalog grouped by source group |
+| `dist/sources.md` | the same catalog as markdown |
+| `dist/pricing.md` | free-tier summary for agents (price 0, no limits) |
+| `dist/llms.txt` | `llmstxt.org` context file |
+| `dist/sitemap.xml` | `/` and `/sources.html` |
+| `dist/sources.csv` / `dist/sources.json` | verbatim + structured dataset |
+| `dist/index.html` | **post-processed**: meta description, canonical, OG/Twitter tags, `SoftwareApplication` + `Organization` JSON-LD, and a hero-matching crawlable block inside `#root` |
+
+- The injected `#root` block is real copy that matches the visible hero, not
+  AI-only text. React replaces it on mount, so it is a crawler/JSS-fallback
+  surface only — do not put anything there that users must read.
+- Injection is wrapped in `<!-- seo:head -->` / `<!-- seo:root -->` sentinels and
+  is **idempotent**: re-running replaces the block instead of stacking it. The
+  idempotency test is the guard against this regressing.
+- `generate(outDir = dist)` takes an output directory so the test suite can run
+  against a temp dir. Never point the test suite at the repo's real `dist/` —
+  vitest runs files in parallel and the writes race.
+- Never hand-edit anything in `dist/`, and never commit generated files. Change
+  the CSV or the generator and rebuild.
+- Generated pages are static HTML with **no** inline executable script, so the
+  `vercel.json` CSP needs no changes. The JSON-LD `<script>` blocks are
+  `type="application/ld+json"`, which CSP does not execute.
+- `public/robots.txt` explicitly allows search and AI crawlers (GPTBot,
+  OAI-SearchBot, PerplexityBot, ClaudeBot, Google-Extended, etc.) and points at
+  `/sitemap.xml`.
+- The results footer links to `/sources.html` with a count read from `sources`,
+  so the number cannot drift from the CSV either.
+
 ## Gates
 
 Run in order before declaring any change done:
