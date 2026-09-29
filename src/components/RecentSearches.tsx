@@ -14,7 +14,7 @@ export function RecentSearches({ recents, onSelect, onClear }: RecentSearchesPro
 
   return (
     <div className="space-y-2">
-      <p className="text-xs font-medium text-[#8b867e] dark:text-[#9a958c] flex items-center gap-1">
+      <p className="text-xs font-medium text-white/70 flex items-center gap-1">
         <Clock className="h-3 w-3" />
         Recent searches
       </p>
