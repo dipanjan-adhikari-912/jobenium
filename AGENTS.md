@@ -64,6 +64,12 @@ Baseline: **0 lint errors, exactly 3 pre-existing warnings** (`ui/button.tsx`,
   deliberately **not rendered** in the grid while the audience is being grown —
   do not re-add it without being asked. The component and its CSS
   (`meshGradient.css`) stay in the tree so it is a one-line re-enable.
+- Visited ("· opened") marks are per device, persisted in `jobenium:visited`,
+  newest-last and capped at `VISITED_LIMIT` (500); **Reset visited** clears them.
+  A card is marked on click, `auxclick` (middle click) and `contextmenu`
+  (right-click → split view / new window), because browsers fire no `click`
+  event for context-menu opens. Right-clicking to copy a link therefore marks
+  the card too — that is deliberate.
 - Dark mode is scoped to the results/loading views (`.dark` class on those roots only);
   the landing page is always light.
 - `Search {n} Sources` count reflects the active location/mode filter

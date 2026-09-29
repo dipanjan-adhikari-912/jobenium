@@ -159,6 +159,8 @@ function SourceCard({
       <a
         href={url}
         onClick={() => onVisit(source.id)}
+        onAuxClick={() => onVisit(source.id)}
+        onContextMenu={() => onVisit(source.id)}
         {...linkProps}
         aria-label={`Open search on ${source.name}`}
         className="after:absolute after:inset-0 after:rounded-[14px] focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-[#161B1D] focus-visible:after:ring-offset-2 dark:focus-visible:after:ring-[#e8e6e1]"

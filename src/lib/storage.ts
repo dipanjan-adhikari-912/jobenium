@@ -65,6 +65,24 @@ export function setDisabledSources(v: string[]): void {
   write("jobenium:disabledSources", v);
 }
 
+// Visited sources (opened at least once, on this device)
+export const VISITED_LIMIT = 500;
+
+function dedupe(ids: string[]): string[] {
+  return [...new Set(ids)];
+}
+
+export function getVisitedSources(): string[] {
+  const raw = read<unknown>("jobenium:visited", []);
+  if (!Array.isArray(raw)) return [];
+  return dedupe(
+    raw.filter((v): v is string => typeof v === "string" && v.length > 0),
+  ).slice(-VISITED_LIMIT);
+}
+export function setVisitedSources(ids: string[]): void {
+  write("jobenium:visited", dedupe(ids).slice(-VISITED_LIMIT));
+}
+
 // Recent searches
 export interface RecentSearch {
   title: string;
