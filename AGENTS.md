@@ -54,21 +54,35 @@ Artifacts it produces, all derived from the CSV:
 |------|---------|
 | `dist/sources.html` | crawlable, human-readable catalog grouped by source group |
 | `dist/sources.md` | the same catalog as markdown |
-| `dist/pricing.md` | free-tier summary for agents (price 0, no limits) |
+| `dist/pricing.html` | free-tier page (`price 0`, no limits) |
+| `dist/pricing.md` | the same summary as markdown, for agents |
 | `dist/llms.txt` | `llmstxt.org` context file |
-| `dist/sitemap.xml` | `/` and `/sources.html` |
+| `dist/sitemap.xml` | every indexable URL: `/`, `/sources.html`, `/pricing.html` and the trust set |
 | `dist/sources.csv` / `dist/sources.json` | verbatim + structured dataset |
-| `dist/index.html` | **post-processed**: meta description, canonical, OG/Twitter tags, `SoftwareApplication` + `Organization` JSON-LD, and a hero-matching crawlable block inside `#root` |
+| `dist/about.html`, `privacy.html`, `terms.html`, `contact.html`, `disclosure.html` | hand-written trust pages, emitted here so one place owns the whole indexable URL set |
+| `dist/index.html` | **post-processed**: `<title>`, meta description, canonical, OG/Twitter tags, `WebSite`/`SoftwareApplication`/`Organization`/`Person` JSON-LD, a `rel=preload` for the first backdrop, and a crawlable copy block inside `#root` |
 
-- The injected `#root` block is real copy that matches the visible hero, not
+- The injected `#root` block is real copy that mirrors the visible hero, not
   AI-only text. React replaces it on mount, so it is a crawler/JSS-fallback
-  surface only — do not put anything there that users must read.
+  surface only — do not put anything there that users must read. The copy that
+  *persists* in the rendered document is `src/components/LandingContent.tsx`; if
+  you change one, change the other, or the prerender and the page will disagree.
 - Injection is wrapped in `<!-- seo:head -->` / `<!-- seo:root -->` sentinels and
   is **idempotent**: re-running replaces the block instead of stacking it. The
   idempotency test is the guard against this regressing.
+- The generator owns `<title>` as well as the meta tags, so the SERP headline
+  cannot drift away from the CSV-derived count.
+- The backdrop preload resolves the hashed filename by reading `dist/assets/`,
+  because Vite only emits that name inside the JS bundle. A bare test run has no
+  `assets/` dir, so the preload is skipped rather than fatal.
 - `generate(outDir = dist)` takes an output directory so the test suite can run
   against a temp dir. Never point the test suite at the repo's real `dist/` —
   vitest runs files in parallel and the writes race.
+- Tests assert the invariants that actually broke in review: every CSV group is
+  rendered (a label typo once silently dropped a source), every generated page is
+  self-canonical, linked and over 150 words, every sitemap URL exists, titles
+  and descriptions stay inside the SERP display budget, and no FAQ answer appears
+  in JSON-LD without also being visible on the page.
 - Never hand-edit anything in `dist/`, and never commit generated files. Change
   the CSV or the generator and rebuild.
 - Generated pages are static HTML with **no** inline executable script, so the
@@ -77,8 +91,30 @@ Artifacts it produces, all derived from the CSV:
 - `public/robots.txt` explicitly allows search and AI crawlers (GPTBot,
   OAI-SearchBot, PerplexityBot, ClaudeBot, Google-Extended, etc.) and points at
   `/sitemap.xml`.
-- The results footer links to `/sources.html` with a count read from `sources`,
-  so the number cannot drift from the CSV either.
+- The results footer and the landing-page content block both link the trust set,
+  with counts read from `sources`, so the number cannot drift from the CSV.
+
+## Performance: the backdrops and `@radix-ui/themes`
+
+Two regressions shipped once and are guarded by size, not by test:
+
+- Backdrops live in `assets/*.webp` at **1280w, q42**. They render at
+  `scale-110` behind `blur-[3px]`, so the old full-res JPEGs shipped ~370KB of
+  LCP for detail the blur discarded. Do not re-add the `.jpg` originals or
+  upscale these; `bg-1` was the LCP element and the largest paint.
+- **`@radix-ui/themes` must stay unimported.** Its stylesheet alone was ~680KB of
+  dead CSS (`*.rt-*`, ~3900 rules) and no component from it is used — the app is
+  built on the headless `radix-ui` primitives plus the `ui/` components. Removing
+  the one import in `main.tsx` took the CSS bundle from 781KB to 99KB and LCP
+  from 2.1s to 1.2s. If you ever want its components, expect that cost back.
+- `vercel.json` sets `Cache-Control: immutable` for `/assets/(.*)`. Those
+  filenames are content-hashed, so without that rule Vercel's default
+  `max-age=0, must-revalidate` re-downloads the whole bundle on every visit. HTML
+  must stay revalidatable.
+- The hero `<section>` carries a solid `bg-[#0b2b23]` under the photo layers on
+  purpose: axe cannot resolve `background-image` when computing text contrast and
+  falls through to the page colour, which made white-on-photo text score 1.29:1.
+  The dark base makes it both legible and auditable.
 
 ## Gates
 

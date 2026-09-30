@@ -1,6 +1,5 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import "@radix-ui/themes/styles.css";
 import "./index.css";
 import { inject } from "@vercel/analytics";
 import App from "./App.tsx";

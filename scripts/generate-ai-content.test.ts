@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { readFileSync, writeFileSync, mkdtempSync, rmSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, rmSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { parseCsvRows } from "../src/lib/csv";
@@ -29,6 +29,10 @@ describe("generate-ai-content", () => {
   beforeAll(() => {
     dist = mkdtempSync(join(tmpdir(), "jobenium-ai-"));
     writeFileSync(join(dist, "index.html"), INDEX_SHELL);
+    // Vite emits the hashed backdrop into dist/assets/; the generator reads the
+    // directory to preload it, so the fixture has to have one.
+    mkdirSync(join(dist, "assets"), { recursive: true });
+    writeFileSync(join(dist, "assets", "bg-1-TESThash.webp"), "not-a-real-image");
     generate(dist);
   });
 
@@ -41,11 +45,17 @@ describe("generate-ai-content", () => {
     expect(files).toEqual([
       "sources.html",
       "sources.md",
+      "pricing.html",
       "pricing.md",
       "llms.txt",
       "sitemap.xml",
       "sources.csv",
       "sources.json",
+      "about.html",
+      "privacy.html",
+      "terms.html",
+      "contact.html",
+      "disclosure.html",
       "index.html",
     ]);
   });
@@ -189,6 +199,120 @@ describe("generate-ai-content", () => {
     const pricing = readFileSync(join(dist, "pricing.md"), "utf8");
     expect(pricing).toContain("# Pricing");
     expect(pricing).toContain("Price: 0/month");
+  });
+
+  it("emits a real, self-canonical, linked trust page for every static page", () => {
+    const slugs = ["pricing.html", "about.html", "privacy.html", "terms.html", "contact.html", "disclosure.html"];
+    for (const slug of slugs) {
+      const html = readFileSync(join(dist, slug), "utf8");
+
+      // Self-referencing canonical and exactly one H1.
+      expect(html, `${slug} canonical`).toContain(
+        `<link rel="canonical" href="https://jobenium.work/${slug}" />`,
+      );
+      expect((html.match(/<h1[\s>]/g) ?? []).length, `${slug} h1 count`).toBe(1);
+      expect(html, `${slug} title`).toMatch(/<title>[^<]+<\/title>/);
+      expect(html, `${slug} description`).toMatch(/name="description" content="[^"]+"/);
+
+      // No orphan pages: every one links back to the launcher and the catalog.
+      expect(html, `${slug} links home`).toContain('href="https://jobenium.work/"');
+      expect(html, `${slug} links catalog`).toContain('href="/sources.html"');
+
+      // Trust pages must not be shells.
+      const words = html
+        .replace(/<script[\s\S]*?<\/script>/g, "")
+        .replace(/<style[\s\S]*?<\/style>/g, "")
+        .replace(/<[^>]+>/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .split(" ")
+        .filter(Boolean);
+      expect(words.length, `${slug} is too thin`).toBeGreaterThan(150);
+
+      // And they carry the OG card, or social shares render bare.
+      expect(html, `${slug} og:image`).toContain('property="og:image"');
+    }
+  });
+
+  it("lists every generated page in the sitemap", () => {
+    const sitemap = readFileSync(join(dist, "sitemap.xml"), "utf8");
+    for (const slug of [
+      "", "sources.html", "pricing.html",
+      "about.html", "privacy.html", "terms.html", "contact.html", "disclosure.html",
+    ]) {
+      expect(sitemap, `sitemap missing /${slug}`).toContain(
+        `<loc>https://jobenium.work/${slug}</loc>`,
+      );
+    }
+    // Sitemap must not list a page that does not exist.
+    const locs = [...sitemap.matchAll(/<loc>https:\/\/jobenium\.work\/([^<]*)<\/loc>/g)].map((m) => m[1]);
+    for (const loc of locs) {
+      expect(existsSync(join(dist, loc || "index.html")), `sitemap lists missing ${loc}`).toBe(true);
+    }
+  });
+
+  it("keeps SERP titles and descriptions inside the display budget", () => {
+    const check = (slug: string) => {
+      const html = readFileSync(join(dist, slug), "utf8");
+      const title = (html.match(/<title>([^<]*)<\/title>/) || [])[1] ?? "";
+      const desc =
+        (html.match(/<meta name="description" content="([^"]*)"/) || [])[1] ?? "";
+      // Google renders ~600px of title and ~155-160 chars of description.
+      expect(title.length, `${slug} title is ${title.length} chars`).toBeGreaterThanOrEqual(30);
+      expect(title.length, `${slug} title is ${title.length} chars`).toBeLessThanOrEqual(60);
+      expect(desc.length, `${slug} description is ${desc.length} chars`).toBeLessThanOrEqual(160);
+    };
+    check("index.html");
+    check("sources.html");
+    check("pricing.html");
+    check("about.html");
+  });
+
+  it("puts a social card and the LCP backdrop preload on the homepage", () => {
+    const html = readFileSync(join(dist, "index.html"), "utf8");
+    expect(html).toContain('property="og:image" content="https://jobenium.work/og-image.png"');
+    expect(html).toContain('name="twitter:card" content="summary_large_image"');
+    expect(html).toContain('name="twitter:image"');
+    // The backdrop is a React-injected CSS background, so only an explicit
+    // preload makes the browser find it before first paint.
+    expect(html).toMatch(/<link rel="preload" as="image" href="\/assets\/bg-1-[\w-]+\.webp" fetchpriority="high" \/>/);
+  });
+
+  it("describes the site and its owner in structured data", () => {
+    // Homepage uses an @graph wrapper, the catalog emits a bare array; flatten
+    // both into a single list of nodes.
+    const nodes = (slug: string) => {
+      const html = readFileSync(join(dist, slug), "utf8");
+      const blocks = [
+        ...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g),
+      ];
+      return blocks.flatMap((b) => {
+        const parsed = JSON.parse(b[1]);
+        const list = Array.isArray(parsed) ? parsed : [parsed];
+        return list.flatMap((n) => n["@graph"] ?? [n]);
+      });
+    };
+
+    const home = nodes("index.html");
+    expect(home.map((n) => n["@type"])).toEqual(
+      expect.arrayContaining(["WebSite", "SoftwareApplication", "Organization", "Person"]),
+    );
+    const org = home.find((n) => n["@type"] === "Organization");
+    expect(org.sameAs).toContain("https://linkedin.com/in/dipanjan-adhikari");
+    expect(org.logo.url).toBe("https://jobenium.work/icon-512.png");
+
+    // The catalog page advertises a list and the FAQ it renders.
+    const catHtml = readFileSync(join(dist, "sources.html"), "utf8");
+    const cat = nodes("sources.html");
+    const list = cat.find((n) => n["@type"] === "ItemList");
+    const faq = cat.find((n) => n["@type"] === "FAQPage");
+    expect(list.itemListElement).toHaveLength(sources.length);
+    expect(faq.mainEntity.length).toBeGreaterThan(0);
+    // Every FAQ answer must also be visible on the page, or it is cloaking.
+    for (const q of faq.mainEntity) {
+      expect(catHtml).toContain(q.name);
+      expect(catHtml).toContain(q.acceptedAnswer.text.slice(0, 40));
+    }
   });
 
   it("copies the dataset verbatim to dist/sources.csv", () => {

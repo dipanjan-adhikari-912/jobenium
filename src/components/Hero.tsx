@@ -27,9 +27,16 @@ export function Hero({
   onNextBackdrop,
 }: HeroProps) {
   return (
-    <section className="relative isolate flex min-h-[calc(100svh-1rem)] flex-col items-center justify-center overflow-hidden rounded-3xl px-6 py-8 sm:px-10 sm:py-16">
+    <section className="relative isolate flex min-h-[calc(100svh-1rem)] flex-col items-center justify-center overflow-hidden rounded-3xl bg-[#0b2b23] px-6 py-8 sm:px-10 sm:py-16">
       <BackdropImage image={backdrop.image} outgoing={backdrop.outgoing} />
-      <div className="absolute inset-0 -z-10 bg-gradient-to-b from-black/55 via-black/40 to-black/60">
+      {/* Sits under the photo layers as a guaranteed-dark base. Axe cannot read
+          background-image when resolving text contrast and falls through to the
+          page colour, so the hero needs a real background-color to be auditable
+          as well as legible. */}
+      <div
+        aria-hidden
+        className="absolute inset-0 -z-10 bg-gradient-to-b from-black/60 via-black/50 to-black/65"
+      >
         <div className="absolute right-4 top-4 flex items-center gap-1 text-white sm:right-6 sm:top-6 [&_button:hover]:bg-white/15 [&_button:hover]:text-white [&_button]:text-white">
           <SettingsPopover
             linkBehavior={linkBehavior}
@@ -55,12 +62,12 @@ export function Hero({
           />
         </button>
 
-        <h1 className="pointer-events-auto mt-6 select-text text-center font-heading text-[clamp(20px,4.34vw,91px)] font-semibold leading-[0.954] tracking-[-0.04em] text-[#d9d9d9] sm:mt-9">
+        <h1 className="pointer-events-auto mt-6 select-text text-center font-heading text-[clamp(20px,4.34vw,91px)] font-semibold leading-[0.954] tracking-[-0.04em] text-white sm:mt-9">
           <span className="block">The internet is full of jobs.</span>
           <span className="block">Find yours.</span>
         </h1>
 
-        <p className="mt-3 text-center text-sm text-[#d9d9d9]/80 sm:text-base">
+        <p className="mt-3 text-center text-sm text-white/90 sm:text-base">
           No sign-up needed. Free forever.
         </p>
 

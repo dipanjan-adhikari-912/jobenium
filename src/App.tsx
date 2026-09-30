@@ -7,6 +7,7 @@ import { SearchLoader, SEARCH_TRANSITION_MS } from "@/components/SearchLoader";
 import { SearchControlPanel } from "@/components/SearchControlPanel";
 import { SourcesDirectory } from "@/components/SourcesDirectory";
 import { ResultsFooter } from "@/components/ResultsFooter";
+import { LandingContent } from "@/components/LandingContent";
 import { SettingsPopover } from "@/components/SettingsPopover";
 import { RecentSearches } from "@/components/RecentSearches";
 import { AddSourceForm } from "@/components/AddSourceForm";
@@ -196,38 +197,41 @@ function App() {
   if (page === "landing") {
     return (
       <div className="min-h-screen bg-[#e6e1dc] p-2">
-        <Hero
-          linkBehavior={settings.linkBehavior}
-          onLinkBehaviorChange={settings.updateLinkBehavior}
-          backdrop={backdrop}
-          onNextBackdrop={nextBackdrop}
-          searchEngine={settings.searchEngine}
-          onSearchEngineChange={settings.updateSearchEngine}
-        >
-          <SearchToolbar
-            title={search.title}
-            keywords={search.keywords}
-            excludes={search.excludes}
-            timeFilter={search.timeFilter}
-            location={search.location}
-            onChange={updateSearch}
-            onSubmit={handleSubmit}
-          />
-          <div className="mt-5">
-            <RecentSearches
-              recents={recent.recents}
-              onSelect={handleSelectRecent}
-              onClear={recent.clearRecent}
+        <main>
+          <Hero
+            linkBehavior={settings.linkBehavior}
+            onLinkBehaviorChange={settings.updateLinkBehavior}
+            backdrop={backdrop}
+            onNextBackdrop={nextBackdrop}
+            searchEngine={settings.searchEngine}
+            onSearchEngineChange={settings.updateSearchEngine}
+          >
+            <SearchToolbar
+              title={search.title}
+              keywords={search.keywords}
+              excludes={search.excludes}
+              timeFilter={search.timeFilter}
+              location={search.location}
+              onChange={updateSearch}
+              onSubmit={handleSubmit}
             />
-          </div>
-        </Hero>
+            <div className="mt-5">
+              <RecentSearches
+                recents={recent.recents}
+                onSelect={handleSelectRecent}
+                onClear={recent.clearRecent}
+              />
+            </div>
+          </Hero>
+          <LandingContent />
+        </main>
       </div>
     );
   }
 
   if (page === "loading") {
     return (
-      <div
+      <main
         className={cn(
           "flex min-h-screen flex-col items-center justify-center bg-[var(--background)] px-4",
           theme === "dark" && "dark",
@@ -235,7 +239,7 @@ function App() {
       >
         <img src={logoAnimated} alt="Jobenium" className="mb-7 size-24" />
         <SearchLoader />
-      </div>
+      </main>
     );
   }
 
