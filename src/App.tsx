@@ -7,7 +7,6 @@ import { SearchLoader, SEARCH_TRANSITION_MS } from "@/components/SearchLoader";
 import { SearchControlPanel } from "@/components/SearchControlPanel";
 import { SourcesDirectory } from "@/components/SourcesDirectory";
 import { ResultsFooter } from "@/components/ResultsFooter";
-import { LandingContent } from "@/components/LandingContent";
 import { SettingsPopover } from "@/components/SettingsPopover";
 import { RecentSearches } from "@/components/RecentSearches";
 import { AddSourceForm } from "@/components/AddSourceForm";
@@ -223,7 +222,6 @@ function App() {
               />
             </div>
           </Hero>
-          <LandingContent />
         </main>
       </div>
     );

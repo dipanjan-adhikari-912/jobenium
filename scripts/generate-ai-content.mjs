@@ -551,12 +551,33 @@ function staticPageBodies(total) {
     "about.html": `<h1>About Jobenium</h1>
       <p class="lede">Jobenium is a job search launcher, not a job board. It holds no listings at all. It takes one job title and runs that same search against every source in its catalog, then hands you the results.</p>
 
-      <h2>Why it exists</h2>
+      <h2>Search every job board at once</h2>
       <p>Most job searches quietly miss most of the market. A role posted on an applicant tracking system is invisible on the big job boards, and a role posted on a country board is invisible everywhere else. Searching properly means visiting dozens of sites by hand, and almost nobody does that consistently.</p>
-      <p>Jobenium removes the bookkeeping. You type the role once, pick a date window and a location if you care, and it builds the right search for each of ${total} sources. Nothing is stored and there is nothing to log into.</p>
+      <p>Jobenium takes one job title and builds the right search for each of its ${total} sources, so a single search reaches the whole market instead of the three sites you happened to remember.</p>
+
+      <h2>What it searches</h2>
+      <ul>
+        <li><strong>Applicant tracking systems</strong> ${EM} the systems companies hire through, where most large-company roles are posted first.</li>
+        <li><strong>General job boards</strong> ${EM} the big aggregators and the regional boards most people start with.</li>
+        <li><strong>Country job sites</strong> ${EM} national boards and official labour portals that no global board covers well.</li>
+        <li><strong>Specialist boards</strong> ${EM} roles by craft, sector or seniority, from design to engineering to clinical work.</li>
+        <li><strong>Startup and VC boards</strong> ${EM} the funds and accelerators that publish their portfolio's openings in one place.</li>
+        <li><strong>Communities and career pages</strong> ${EM} where jobs get posted directly, including employer career pages.</li>
+      </ul>
+
+      <h2>How to use it</h2>
+      <ol>
+        <li>Type a job title, or pick a recent search.</li>
+        <li>Set a date window such as the last 24 hours, and a location if you want to narrow it.</li>
+        <li>Open the sources that matter to you. Each opens a real search on that site's own results page.</li>
+      </ol>
+      <p>There is no account, no CV upload and no application tracking. Jobenium holds no listings of its own ${EM} it is a front door to other people's search results.</p>
+
+      <h2>Free, with no catch</h2>
+      <p>The full catalog of ${total} sources is available at no cost and with no usage cap. Jobenium is not funded by advertising or affiliate deals, and <a href="/disclosure.html">placement in the source list cannot be bought</a>.</p>
 
       <h2>How the catalog is built</h2>
-      <p>The catalog is a single dataset, and the same dataset drives the tool and the <a href="/sources.html">public source list</a>. Sources are grouped by the kind of site they are, and country-specific sources are ranked by how well each covers that market. There is no paid placement and no source can buy a better rank; see the <a href="/disclosure.html">disclosure</a>.</p>
+      <p>The catalog is a single dataset, and the same dataset drives the tool and the <a href="/sources.html">public source list</a>. Sources are grouped by the kind of site they are, and country-specific sources are ranked by how well each covers that market. There is no paid placement and no source can buy a better rank.</p>
 
       <h2>What it does not do</h2>
       <ul>

@@ -65,8 +65,8 @@ Artifacts it produces, all derived from the CSV:
 - The injected `#root` block is real copy that mirrors the visible hero, not
   AI-only text. React replaces it on mount, so it is a crawler/JSS-fallback
   surface only — do not put anything there that users must read. The copy that
-  *persists* in the rendered document is `src/components/LandingContent.tsx`; if
-  you change one, change the other, or the prerender and the page will disagree.
+  *persists* in the rendered document is `src/components/Hero.tsx`; if you change
+  one, change the other, or the prerender and the page will disagree.
 - Injection is wrapped in `<!-- seo:head -->` / `<!-- seo:root -->` sentinels and
   is **idempotent**: re-running replaces the block instead of stacking it. The
   idempotency test is the guard against this regressing.
@@ -126,6 +126,28 @@ npm run lint; if ($?) { npx tsc -b; if ($?) { npm test -- --run; if ($?) { npm r
 
 Baseline: **0 lint errors, exactly 3 pre-existing warnings** (`ui/button.tsx`,
 `ui/badge.tsx`, `liquid-glass.tsx`).
+
+## The landing page is non-scrolling, and it is the owner's design
+
+Hard constraints, not preferences. Breaking either one requires being asked
+first, not inferring permission from a general "go ahead".
+
+- **The landing page is one viewport and does not scroll.** The hero fills the
+  screen (`min-h-[calc(100svh-1rem)]`) and nothing renders below it. Do not add
+  a content section, FAQ, or anything else to the landing view. SEO copy goes on
+  a generated static page instead — `/about.html` is the intended home for
+  explainer content, because it is already generated, self-canonical, in the
+  sitemap and linked from the footers.
+- **Do not change the landing page's colours, spacing, scrim, or glass panel
+  without asking.** An audit once "fixed" contrast by restyling the search panel
+  and darkening the hero scrim, and shipped it inside a general "do it". The fix
+  was real (measured 1.08:1) but so was the overreach: it was a visible design
+  change made without a decision.
+- Before touching anything a visitor can see, ask. "Do it" applies to the list
+  that was actually presented, not to the file in front of you.
+- Performance and infrastructure work (image formats, dead CSS, cache headers,
+  meta tags, generated pages) is not a design change and needs no permission.
+  Keep those separate from visual changes and say which is which.
 
 ## Testing
 
