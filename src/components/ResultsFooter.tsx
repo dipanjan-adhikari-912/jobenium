@@ -4,7 +4,6 @@ import { sources } from "@/data/sources";
 
 const TRUST_LINKS = [
   { href: "/sources.html", label: "Browse all sources" },
-  { href: "/pricing.html", label: "Pricing" },
   { href: "/about.html", label: "About" },
   { href: "/privacy.html", label: "Privacy" },
   { href: "/contact.html", label: "Contact" },

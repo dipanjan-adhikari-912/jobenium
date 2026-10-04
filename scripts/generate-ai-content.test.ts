@@ -45,8 +45,6 @@ describe("generate-ai-content", () => {
     expect(files).toEqual([
       "sources.html",
       "sources.md",
-      "pricing.html",
-      "pricing.md",
       "llms.txt",
       "sitemap.xml",
       "sources.csv",
@@ -191,18 +189,29 @@ describe("generate-ai-content", () => {
     expect(llms).not.toContain(`${countryCount} country-specific job sites`);
   });
 
-  it("emits a sitemap and agent pricing file", () => {
+  it("emits a sitemap covering every indexable page", () => {
     const sitemap = readFileSync(join(dist, "sitemap.xml"), "utf8");
     expect(sitemap).toContain("<loc>https://jobenium.work/</loc>");
     expect(sitemap).toContain("<loc>https://jobenium.work/sources.html</loc>");
+  });
 
-    const pricing = readFileSync(join(dist, "pricing.md"), "utf8");
-    expect(pricing).toContain("# Pricing");
-    expect(pricing).toContain("Price: 0/month");
+  it("emits no pricing page or reference to one", () => {
+    // There is no paid tier, so a pricing page is pure surface. Guard against
+    // it creeping back in via the nav, the sitemap or any page body.
+    for (const slug of [
+      "index.html", "sources.html", "sources.md", "llms.txt",
+      "sitemap.xml", "about.html", "privacy.html", "terms.html",
+      "contact.html", "disclosure.html",
+    ]) {
+      const body = readFileSync(join(dist, slug), "utf8");
+      expect(body, `${slug} still references pricing`).not.toMatch(/pricing/i);
+    }
+    expect(existsSync(join(dist, "pricing.html"))).toBe(false);
+    expect(existsSync(join(dist, "pricing.md"))).toBe(false);
   });
 
   it("emits a real, self-canonical, linked trust page for every static page", () => {
-    const slugs = ["pricing.html", "about.html", "privacy.html", "terms.html", "contact.html", "disclosure.html"];
+    const slugs = ["about.html", "privacy.html", "terms.html", "contact.html", "disclosure.html"];
     for (const slug of slugs) {
       const html = readFileSync(join(dist, slug), "utf8");
 
@@ -237,7 +246,7 @@ describe("generate-ai-content", () => {
   it("lists every generated page in the sitemap", () => {
     const sitemap = readFileSync(join(dist, "sitemap.xml"), "utf8");
     for (const slug of [
-      "", "sources.html", "pricing.html",
+      "", "sources.html",
       "about.html", "privacy.html", "terms.html", "contact.html", "disclosure.html",
     ]) {
       expect(sitemap, `sitemap missing /${slug}`).toContain(
@@ -264,7 +273,6 @@ describe("generate-ai-content", () => {
     };
     check("index.html");
     check("sources.html");
-    check("pricing.html");
     check("about.html");
   });
 

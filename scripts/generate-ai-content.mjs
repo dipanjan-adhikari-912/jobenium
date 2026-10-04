@@ -9,7 +9,6 @@
  *   dist/index.html        (post-processed: meta, canonical, OG, JSON-LD, hero block)
  *   dist/sources.html      (crawlable catalog)
  *   dist/sources.md        (markdown for LLMs)
- *   dist/pricing.md        (free-tier summary for agents)
  *   dist/llms.txt          (llmstxt.org context file)
  *   dist/sitemap.xml
  *   dist/sources.csv       (raw copy of the dataset)
@@ -43,7 +42,6 @@ const STATIC_PAGES = [
 /** Sitemap order: the two data-driven pages, then the trust set. */
 const NAV = [
   { href: "/sources.html", label: "Source catalog" },
-  { href: "/pricing.html", label: "Pricing" },
   { href: "/about.html", label: "About" },
   { href: "/privacy.html", label: "Privacy" },
   { href: "/terms.html", label: "Terms" },
@@ -437,61 +435,6 @@ function renderSourcesMd(sources, total) {
   return parts.join("\n");
 }
 
-function renderPricingMd(total) {
-  return `# Pricing ${EM} Jobenium
-
-## Free
-- Price: 0/month
-- Limits: none. No account, no card, no usage cap.
-- Features: the full catalog of ${total} job sources, country and work-mode filters, search-engine choice
-
-Jobenium requires no sign-up and collects no payment details.
-`;
-}
-
-/** Human-facing /pricing.html, so the footer link is a page and not a dead end. */
-function renderPricingHtml(total) {
-  return page({
-    head: staticHead({
-      title: "Pricing: free forever, no account needed",
-      desc: "Jobenium is free: no account, no card, no usage cap, and the full source catalog.",
-      path: "pricing.html",
-      jsonLd: {
-        "@context": "https://schema.org",
-        "@type": "Product",
-        name: "Jobenium",
-        description: `Free job search launcher covering ${total} job sources.`,
-        offers: {
-          "@type": "Offer",
-          price: "0",
-          priceCurrency: "USD",
-          availability: "https://schema.org/InStock",
-        },
-      },
-    }),
-    body: `      <h1>Pricing</h1>
-      <p class="lede">Jobenium is free. There is no paid tier, no trial to expire and no usage cap.</p>
-
-      <h2>The free plan</h2>
-      <ul>
-        <li><strong>Price:</strong> 0/month</li>
-        <li><strong>Account:</strong> none, ever</li>
-        <li><strong>Limits:</strong> none ${EM} no cap on searches, sources or history</li>
-        <li><strong>Payment details:</strong> never collected</li>
-      </ul>
-      <p>The whole catalog of ${total} sources is available, including country and work-mode filters and your choice of search engine. There is nothing to unlock.</p>
-
-      <h2>Why it is free</h2>
-      <p>Jobenium is not funded by advertising, affiliate deals, or charging employers, and the source list cannot be bought ${EM} see the <a href="/disclosure.html">disclosure</a>. The URL it builds is the product; there is nothing to meter.</p>
-
-      <h2>What Jobenium is not</h2>
-      <p>It is not a job board and holds no listings, so there is no CV to upload, no recruiter to email, and no application to track. It sends you to the source sites, which run their own processes.</p>
-
-      <h2>Still have questions?</h2>
-      <p>The <a href="/terms.html">terms</a> cover what "as is" means in practice, and the <a href="/contact.html">contact page</a> is open.</p>`,
-  });
-}
-
 function renderLlmsTxt(sources, total) {
   const countrySites = countGroup(sources, "Country");
   const countryCount = new Set(
@@ -510,7 +453,6 @@ function renderLlmsTxt(sources, total) {
 ## Reference
 - [Catalog (markdown)](${SITE_URL}/sources.md): the same catalog as markdown
 - [Catalog data (CSV)](${SITE_URL}/sources.csv) and [JSON](${SITE_URL}/sources.json)
-- [Pricing](${SITE_URL}/pricing.md): free, no account required
 
 ## Optional
 - [ATS platforms](${SITE_URL}/sources.html#ats-platforms) and [job boards](${SITE_URL}/sources.html#job-boards)
@@ -699,7 +641,6 @@ function renderSitemap() {
   const urls = [
     { loc: `${SITE_URL}/`, priority: "1.0" },
     { loc: `${SITE_URL}/sources.html`, priority: "0.9" },
-    { loc: `${SITE_URL}/pricing.html`, priority: "0.4" },
     ...STATIC_PAGES.map((p) => ({ loc: `${SITE_URL}/${p.slug}`, priority: "0.3" })),
   ];
   const entries = urls
@@ -758,7 +699,7 @@ function heroBlock(total) {
 
         <h2>Free, with no catch</h2>
         <p>The full catalog of ${total} sources is available at no cost and with no usage cap. Jobenium is not funded by advertising or affiliate deals, and <a href="/disclosure.html">placement in the source list cannot be bought</a>.</p>
-        <p>See the <a href="/sources.html">full source catalog</a>, the <a href="/pricing.html">pricing</a>, or the <a href="/privacy.html">privacy policy</a>.</p>
+        <p>See the <a href="/sources.html">full source catalog</a> or the <a href="/privacy.html">privacy policy</a>.</p>
       </div>`;
 }
 
@@ -967,8 +908,6 @@ export function generate(outDir = DIST) {
 
   write("sources.html", renderSourcesHtml(sources, total));
   write("sources.md", renderSourcesMd(sources, total));
-  write("pricing.html", renderPricingHtml(total));
-  write("pricing.md", renderPricingMd(total));
   write("llms.txt", renderLlmsTxt(sources, total));
   write("sitemap.xml", renderSitemap());
   write("sources.csv", csvRaw);

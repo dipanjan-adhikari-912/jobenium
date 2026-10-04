@@ -54,10 +54,8 @@ Artifacts it produces, all derived from the CSV:
 |------|---------|
 | `dist/sources.html` | crawlable, human-readable catalog grouped by source group |
 | `dist/sources.md` | the same catalog as markdown |
-| `dist/pricing.html` | free-tier page (`price 0`, no limits) |
-| `dist/pricing.md` | the same summary as markdown, for agents |
 | `dist/llms.txt` | `llmstxt.org` context file |
-| `dist/sitemap.xml` | every indexable URL: `/`, `/sources.html`, `/pricing.html` and the trust set |
+| `dist/sitemap.xml` | every indexable URL: `/`, `/sources.html` and the trust set |
 | `dist/sources.csv` / `dist/sources.json` | verbatim + structured dataset |
 | `dist/about.html`, `privacy.html`, `terms.html`, `contact.html`, `disclosure.html` | hand-written trust pages, emitted here so one place owns the whole indexable URL set |
 | `dist/index.html` | **post-processed**: `<title>`, meta description, canonical, OG/Twitter tags, `WebSite`/`SoftwareApplication`/`Organization`/`Person` JSON-LD, a `rel=preload` for the first backdrop, and a crawlable copy block inside `#root` |
@@ -93,6 +91,12 @@ Artifacts it produces, all derived from the CSV:
   `/sitemap.xml`.
 - The results footer and the landing-page content block both link the trust set,
   with counts read from `sources`, so the number cannot drift from the CSV.
+- **There is no pricing page and there must not be one.** There is no paid tier,
+  so a pricing URL is surface with nothing behind it. The free signal is carried
+  by copy instead — "no sign-up, free forever" in the hero, and
+  `isAccessibleForFree` + `offers.price "0"` in the homepage schema, which is
+  what AI engines actually read. A test asserts no generated file mentions
+  pricing at all.
 
 ## Performance: the backdrops and `@radix-ui/themes`
 
