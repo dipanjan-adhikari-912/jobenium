@@ -131,8 +131,18 @@ Deployment Protection, so they cannot be curled either.
   agents look for. The canonical URLs stay the `.html` files; the aliases are not
   duplicates. `scripts/agent-readiness.test.ts` guards the ordering, the
   condition, and that `rewrites` is not used at all.
-- `routes` items are `additionalProperties: false` and reject `headers`; the
-  alias keys are `src`/`dest`. Schema: `https://openapi.vercel.sh/vercel.json`.
+- **Defining `routes` disables the top-level `headers` block entirely.** This is
+  the third thing that shipped silently, and the worst one: the CSP, nosniff,
+  frame-deny, referrer and permissions headers all vanished from production in
+  the same deploy that fixed the routing. Every one of them now rides on a
+  `continue` route (`{ "src": "/(.*)", "continue": true, "headers": { … } }`),
+  as does `Cache-Control: immutable` for hashed assets and `Vary: Accept` for the
+  two negotiated paths. There is no `headers` key left in the file.
+- `routes` items are `additionalProperties: false`; the alias keys are
+  `src`/`dest` and `headers` is an object, not an array. Schema:
+  `https://openapi.vercel.sh/vercel.json`. Validate changes against it — a
+  throwaway checker that fetches that schema and resolves `$ref`s catches what
+  the deploy would otherwise reject.
 - A markdown body **on a 404** is not reachable from static output alone: Vercel
   serves the not-found page with a 404 status and there is no way to swap the
   body by `Accept`. It needs a Function. `dist/404.html` is the HTML answer until

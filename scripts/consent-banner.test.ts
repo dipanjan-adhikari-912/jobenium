@@ -67,13 +67,21 @@ describe("consent banner", () => {
   });
 
   it("keeps the CSP in step with the third party that now runs on the site", () => {
-    const headers = JSON.parse(readFileSync(join(root, "vercel.json"), "utf8")).headers as {
-      source: string;
-      headers: { key: string; value: string }[];
-    }[];
-    const csp = headers
-      .flatMap((h) => h.headers)
-      .find((h) => h.key === "Content-Security-Policy");
+    // The CSP lives on a `continue` route: once `routes` exists, vercel.json's
+    // top-level `headers` block is ignored, so this has to read the route.
+    const config = JSON.parse(
+      readFileSync(join(process.cwd(), "vercel.json"), "utf8"),
+    ) as {
+      headers?: { headers: { key: string; value: string }[] }[];
+      routes: { headers?: Record<string, string> }[];
+    };
+    const fromHeaders = (config.headers ?? []).flatMap((h) => h.headers);
+    const fromRoutes = config.routes.flatMap((r) =>
+      Object.entries(r.headers ?? {}).map(([key, value]) => ({ key, value })),
+    );
+    const csp = [...fromHeaders, ...fromRoutes].find(
+      (h) => h.key === "Content-Security-Policy",
+    );
     expect(csp, "vercel.json no longer sets a CSP").toBeDefined();
 
     const directives = parseCsp(csp!.value);
