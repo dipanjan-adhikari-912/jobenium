@@ -11,12 +11,7 @@ import { join } from "node:path";
 const config = JSON.parse(
   readFileSync(join(process.cwd(), "vercel.json"), "utf8"),
 ) as {
-  rewrites: {
-    source: string;
-    destination: string;
-    has?: { type: string; key: string; value: string }[];
-    headers?: Record<string, string>;
-  }[];
+  rewrites: Record<string, unknown>[];
   headers: { source: string; headers: { key: string; value: string }[] }[];
 };
 
@@ -24,6 +19,20 @@ const rewriteFor = (source: string) =>
   config.rewrites.filter((r) => r.source === source);
 
 describe("agent-facing routes", () => {
+  it("uses only the keys Vercel's schema accepts in a rewrite", () => {
+    // vercel.json rewrites are additionalProperties: false. Adding `headers`
+    // there failed deployment schema validation, and Vary does not belong there
+    // anyway — the headers rules below already match the incoming path.
+    const allowed = new Set(["source", "destination", "has"]);
+    for (const rule of config.rewrites) {
+      for (const key of Object.keys(rule)) {
+        expect(allowed.has(key), `rewrite ${String(rule.source)}: "${key}" is not a valid rewrite key`).toBe(
+          true,
+        );
+      }
+    }
+  });
+
   it("serves Markdown at the canonical URL when an agent asks for it", () => {
     for (const [source, destination] of [
       ["/", "/index.md"],
@@ -37,12 +46,12 @@ describe("agent-facing routes", () => {
       expect(rule.has).toEqual([
         { type: "header", key: "accept", value: "text/markdown" },
       ]);
-      // Vary has to be on both variants or a CDN will hand Markdown to browsers.
-      expect(rule.headers?.Vary, `${source} rewrite has no Vary`).toBe("Accept");
+      // Vary has to be on the response — on both variants, which are both served
+      // from this path, so one headers rule covers them.
       const vary = config.headers.find((h) => h.source === source);
       expect(
         vary?.headers.some((h) => h.key === "Vary" && h.value === "Accept"),
-        `${source} HTML response has no Vary: Accept`,
+        `${source} response has no Vary: Accept`,
       ).toBe(true);
     }
   });

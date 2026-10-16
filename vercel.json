@@ -3,14 +3,12 @@
     {
       "source": "/",
       "has": [{ "type": "header", "key": "accept", "value": "text/markdown" }],
-      "destination": "/index.md",
-      "headers": { "Vary": "Accept", "Cache-Control": "public, max-age=0, must-revalidate" }
+      "destination": "/index.md"
     },
     {
       "source": "/sources.html",
       "has": [{ "type": "header", "key": "accept", "value": "text/markdown" }],
-      "destination": "/sources.md",
-      "headers": { "Vary": "Accept", "Cache-Control": "public, max-age=0, must-revalidate" }
+      "destination": "/sources.md"
     },
     { "source": "/about", "destination": "/about.html" },
     { "source": "/privacy", "destination": "/privacy.html" },
