@@ -54,17 +54,25 @@ Artifacts it produces, all derived from the CSV:
 |------|---------|
 | `dist/sources.html` | crawlable, human-readable catalog grouped by source group |
 | `dist/sources.md` | the same catalog as markdown |
-| `dist/llms.txt` | `llmstxt.org` context file |
+| `dist/llms.txt` | `llmstxt.org` context file, including a "when to use this" section |
+| `dist/llms-full.txt` | the whole site as plain text, so an agent gets it in one request |
+| `dist/index.md` | the homepage copy as markdown, for `Accept: text/markdown` |
 | `dist/sitemap.xml` | every indexable URL: `/`, `/sources.html` and the trust set |
 | `dist/sources.csv` / `dist/sources.json` | verbatim + structured dataset |
 | `dist/about.html`, `privacy.html`, `terms.html`, `contact.html`, `disclosure.html` | hand-written trust pages, emitted here so one place owns the whole indexable URL set |
+| `dist/404.html` | noindex dead-path page that points at the catalog and the agent files |
 | `dist/index.html` | **post-processed**: `<title>`, meta description, canonical, OG/Twitter tags, `WebSite`/`SoftwareApplication`/`Organization`/`Person` JSON-LD, a `rel=preload` for the first backdrop, and a crawlable copy block inside `#root` |
 
-- The injected `#root` block is real copy that mirrors the visible hero, not
-  AI-only text. React replaces it on mount, so it is a crawler/JSS-fallback
-  surface only — do not put anything there that users must read. The copy that
-  *persists* in the rendered document is `src/components/Hero.tsx`; if you change
-  one, change the other, or the prerender and the page will disagree.
+- The injected `#root` block is a **crawler/JSS-fallback surface only**: React
+  replaces it on mount, and the visible hero renders only its `<h1>` and the
+  search panel (the landing page is one viewport — see below). So the block and
+  `src/components/Hero.tsx` are *not* two copies of one surface, and editing the
+  block does not change what a visitor sees. It still has to be honest copy —
+  everything in it is also what `dist/index.md` and `dist/llms-full.txt` serve,
+  because both are generated from this same function rather than maintained
+  beside it. A test asserts `index.md` carries every heading and link in the
+  block, which is what keeps the Markdown from quietly saying something the page
+  does not.
 - Injection is wrapped in `<!-- seo:head -->` / `<!-- seo:root -->` sentinels and
   is **idempotent**: re-running replaces the block instead of stacking it. The
   idempotency test is the guard against this regressing.
@@ -98,6 +106,28 @@ Artifacts it produces, all derived from the CSV:
   `/sitemap.xml`.
 - The results footer and the landing-page content block both link the trust set,
   with counts read from `sources`, so the number cannot drift from the CSV.
+
+## Agent-facing routing lives in `vercel.json`, not the generator
+
+The `.md` twins are useless without the routes that reach them, and those routes
+are the half of the AI layer a build cannot verify — previews sit behind
+Deployment Protection, so they cannot be curled either.
+
+- `rewrites` serves `/index.md` at `/` and `/sources.md` at `/sources.html` when
+  the request carries `Accept: text/markdown`. Both are conditional on that
+  header — an unconditional rewrite would hand Markdown to every browser — and
+  both carry `Vary: Accept`, as does the HTML response, or a CDN will serve one
+  variant from the other's cache entry. `scripts/agent-readiness.test.ts` guards
+  all of that, plus the six extensionless aliases (`/about`, `/privacy`,
+  `/terms`, `/contact`, `/disclosure`, `/sources`) that AI agents look for. The
+  canonical URLs stay the `.html` files; the aliases are not duplicates.
+- A markdown body **on a 404** is not reachable from static output alone: Vercel
+  serves the not-found page with a 404 status and there is no way to swap the
+  body by `Accept`. It needs a Function. `dist/404.html` is the HTML answer until
+  then, which is why it links the catalog and the agent files.
+- `dist/index.md` and `dist/llms-full.txt` are converted from the *same* HTML the
+  generator already emits (`htmlToMarkdown`), not written beside it. A second
+  copy of the copy is a second thing to drift.
 - **There is no pricing page and there must not be one.** There is no paid tier,
   so a pricing URL is surface with nothing behind it. The free signal is carried
   by copy instead — "no sign-up, free forever" in the hero, and

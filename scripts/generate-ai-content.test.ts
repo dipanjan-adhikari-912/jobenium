@@ -46,6 +46,8 @@ describe("generate-ai-content", () => {
       "sources.html",
       "sources.md",
       "llms.txt",
+      "llms-full.txt",
+      "index.md",
       "sitemap.xml",
       "sources.csv",
       "sources.json",
@@ -54,6 +56,7 @@ describe("generate-ai-content", () => {
       "terms.html",
       "contact.html",
       "disclosure.html",
+      "404.html",
       "index.html",
     ]);
   });
@@ -308,6 +311,15 @@ describe("generate-ai-content", () => {
     const org = home.find((n) => n["@type"] === "Organization");
     expect(org.sameAs).toContain("https://linkedin.com/in/dipanjan-adhikari");
     expect(org.logo.url).toBe("https://jobenium.work/icon-512.png");
+    // Answer engines check an Organization is contactable before recommending it.
+    expect(org.contactPoint.email).toBe("hello@jobenium.work");
+    expect(org.contactPoint.url).toBe("https://jobenium.work/contact.html");
+
+    // The About page names the same person, so the two pages describe one entity.
+    const about = nodes("about.html");
+    const founder = about.find((n) => n["@type"] === "Person");
+    expect(founder["@id"]).toBe("https://jobenium.work/#founder");
+    expect(home.find((n) => n["@type"] === "Person")["@id"]).toBe(founder["@id"]);
 
     // The catalog page advertises a list and the FAQ it renders.
     const catHtml = readFileSync(join(dist, "sources.html"), "utf8");
@@ -325,6 +337,78 @@ describe("generate-ai-content", () => {
 
   it("copies the dataset verbatim to dist/sources.csv", () => {
     expect(readFileSync(join(dist, "sources.csv"), "utf8")).toBe(csvRaw);
+  });
+
+  it("tells agents when to use Jobenium, and when not to", () => {
+    const llms = readFileSync(join(dist, "llms.txt"), "utf8");
+    expect(llms).toContain("## When to use this");
+    expect(llms).toContain(String(sources.length));
+    // A context file that only sells is not guidance: the boundary matters.
+    expect(llms).toMatch(/When not to use it/i);
+    // Every indexable page is reachable from it, not just the tool and catalog.
+    for (const slug of ["about.html", "privacy.html", "terms.html", "contact.html", "disclosure.html"]) {
+      expect(llms, `llms.txt does not link ${slug}`).toContain(`https://jobenium.work/${slug}`);
+    }
+    expect(llms).toContain("https://jobenium.work/llms-full.txt");
+  });
+
+  it("ships the whole site in one file (llms-full.txt)", () => {
+    const full = readFileSync(join(dist, "llms-full.txt"), "utf8");
+    expect(full).toContain("## When to use this");
+    expect(full).toContain("## Launcher");
+    expect(full).toContain("## Frequently asked questions");
+    // The catalog, so one request answers "how many job sources are there".
+    expect(full).toContain("ATS platforms");
+    expect(full).toContain(String(sources.length));
+    for (const s of sources) expect(full).toContain(s.name);
+  });
+
+  it("serves index.md as a faithful twin of the injected homepage copy", () => {
+    // Converting the prerender instead of maintaining a second copy is the point:
+    // the Markdown cannot say anything the page does not.
+    const html = readFileSync(join(dist, "index.html"), "utf8");
+    const root = html.slice(html.indexOf("<!-- seo:root -->"), html.indexOf("<!-- /seo:root -->"));
+    const md = readFileSync(join(dist, "index.md"), "utf8");
+    // <br /> becomes a space in the Markdown, so compare on collapsed
+    // whitespace rather than reaching into either format.
+    const flat = md.replace(/\s+/g, " ");
+
+    for (const heading of [...root.matchAll(/<h[12][^>]*>(.*?)<\/h[12]>/g)].map((m) =>
+      m[1].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim(),
+    )) {
+      expect(flat, `index.md is missing "${heading}"`).toContain(heading);
+    }
+    for (const href of [...root.matchAll(/href="([^"]+)"/g)].map((m) => m[1])) {
+      expect(md, `index.md is missing the ${href} link`).toContain(`](${href})`);
+    }
+    expect(md).toContain(String(sources.length));
+  });
+
+  it("answers a dead path with the catalog instead of Vercel's bare error", () => {
+    const html = readFileSync(join(dist, "404.html"), "utf8");
+    // Never indexable, never canonical — it is not a page of the site.
+    expect(html).toContain('<meta name="robots" content="noindex, follow" />');
+    expect(html).not.toContain('rel="canonical"');
+    // But an agent that lands here is one request from the useful files.
+    for (const href of ["/sources.html", "/llms.txt", "/llms-full.txt", "/sitemap.xml"]) {
+      expect(html, `404.html does not link ${href}`).toContain(`href="${href}"`);
+    }
+    // It must not be advertised as a real page.
+    const sitemap = readFileSync(join(dist, "sitemap.xml"), "utf8");
+    expect(sitemap).not.toContain("404");
+  });
+
+  it("dates the About page and links the contact page from the homepage copy", () => {
+    const about = readFileSync(join(dist, "about.html"), "utf8");
+    expect(about).toMatch(/Last updated: \d{4}-\d{2}-\d{2}/);
+    expect(about).toContain("Dipanjan Adhikari");
+
+    // An agent checks /about, /privacy and /contact for legitimacy; only linking
+    // two of the three from the homepage left contact undiscoverable.
+    const root = readFileSync(join(dist, "index.html"), "utf8");
+    for (const href of ["/contact.html", "/privacy.html", "/sources.html", "/about.html"]) {
+      expect(root, `homepage copy does not link ${href}`).toContain(`href="${href}"`);
+    }
   });
 
   it("skips the index patch when there is no built index.html", () => {

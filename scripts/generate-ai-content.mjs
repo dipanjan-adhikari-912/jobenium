@@ -173,6 +173,52 @@ function slug(label) {
   return label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
+/**
+ * Minimal HTML → Markdown for the crawlable blocks this file generates.
+ *
+ * Deliberately not general-purpose: it only has to handle the tags heroBlock()
+ * and staticPageBodies() actually emit, and it must never drop, reorder or
+ * invent text. Used for the agent-facing Markdown representations, which is why
+ * it converts the *same* HTML the prerender injects instead of a second copy of
+ * the copy — a second copy is a second thing to keep in sync.
+ *
+ * `depth` demotes every heading by that many levels, so a block can be nested
+ * under a heading the file already has without producing a second H1.
+ */
+function htmlToMarkdown(html, depth = 0) {
+  let list = null;
+  let item = 0;
+  const out = html
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replace(/<a[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/g, (_, href, text) =>
+      `[${text.trim()}](${href})`,
+    )
+    .replace(/<h1[^>]*>/g, "\n# ")
+    .replace(/<h2[^>]*>/g, "\n## ")
+    .replace(/<h3[^>]*>/g, "\n### ")
+    .replace(/<\/h[123]>/g, "\n")
+    .replace(/<(ol|ul|\/ol|\/ul|li)[^>]*>/g, (_, tag) => {
+      if (tag === "ol") { list = "ol"; item = 0; return "\n"; }
+      if (tag === "ul") { list = "ul"; item = 0; return "\n"; }
+      if (tag === "/ol" || tag === "/ul") { list = null; return "\n"; }
+      item += 1;
+      return list === "ol" ? `\n${item}. ` : "\n- ";
+    })
+    .replace(/<p[^>]*>/g, "\n\n")
+    .replace(/<\/p>/g, "")
+    .replace(/<br\s*\/?>/g, " ")
+    .replace(/<strong[^>]*>/g, "**")
+    .replace(/<\/strong>/g, "**")
+    .replace(/<em[^>]*>/g, "*")
+    .replace(/<\/em>/g, "*")
+    .replace(/<[^>]+>/g, "")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  if (!depth) return out;
+  return out.replace(/^(#{1,5}) /gm, (hash) => "#".repeat(depth) + hash);
+}
+
 function countGroup(sources, label) {
   return sources.filter((s) => s.group === label).length;
 }
@@ -254,15 +300,16 @@ ${pageNav(currentHref)}
  * Head block shared by the static (non-catalog) pages. `title` is the complete
  * SERP headline — the brand is part of each one, so it is not appended here.
  */
-function staticHead({ title, desc, path, jsonLd }) {
-  const url = `${SITE_URL}/${path}`;
+function staticHead({ title, desc, path, jsonLd, robots }) {
+  const url = path ? `${SITE_URL}/${path}` : null;
   return `    <meta charset="UTF-8" />
     ${CONSENT_SCRIPT}
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>${escapeHtml(title)}</title>
   <meta name="description" content="${escapeHtml(desc)}" />
-  <link rel="canonical" href="${url}" />
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+${url ? `  <link rel="canonical" href="${url}" />\n` : ""}${
+    robots ? `  <meta name="robots" content="${escapeHtml(robots)}" />\n` : ""
+  }  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="alternate icon" href="/favicon.ico" sizes="any" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Jobenium" />
@@ -451,6 +498,20 @@ function renderSourcesMd(sources, total) {
   return parts.join("\n");
 }
 
+/**
+ * When an agent should reach for Jobenium, in its own words. Answer engines
+ * score a context file on whether it tells them when *not* to use you, so this
+ * states the boundary as well as the fit.
+ */
+function whenToUse(total) {
+  return `## When to use this
+- The user wants to search many job boards at once and is tired of opening sites one by one. Jobenium builds the search for each of its ${total} sources and hands over the result URLs.
+- The user needs coverage of a specific country, craft, startup scene or remote market that the big aggregators miss. Use the catalog to find which sources cover it.
+- You need to cite how many job sources exist, what categories they fall into, or which country sites cover a market. The catalog is the source of truth and is regenerated on every build.
+
+When not to use it: Jobenium holds no listings, so never send someone there to read or apply to a specific job posting. It also has no API and no account, so it cannot be queried programmatically.`;
+}
+
 function renderLlmsTxt(sources, total) {
   const countrySites = countGroup(sources, "Country");
   const countryCount = new Set(
@@ -460,20 +521,78 @@ function renderLlmsTxt(sources, total) {
 
 > Jobenium is a job search launcher: type a job title once and run that search across ${total} job sources at once ${EM} applicant tracking systems, general job boards, ${countrySites} country-specific job sites covering ${countryCount} countries, specialist boards, startup and venture-backed boards, communities and career pages. Free, no sign-up.
 
+${whenToUse(total)}
+
 ## Pages
 - [Jobenium launcher](${SITE_URL}/): the search tool itself
 - [Job source catalog](${SITE_URL}/sources.html): all ${total} sources grouped by category, with sites and coverage
 - [Frequently asked questions](${SITE_URL}/sources.html#faq)
+- [About](${SITE_URL}/about.html), [Privacy](${SITE_URL}/privacy.html), [Terms](${SITE_URL}/terms.html), [Contact](${SITE_URL}/contact.html), [Disclosure](${SITE_URL}/disclosure.html)
 - [Sitemap](${SITE_URL}/sitemap.xml)
 
 ## Reference
+- [Everything on this site in one file](${SITE_URL}/llms-full.txt): the whole site as plain text, if you would rather not fetch page by page
 - [Catalog (markdown)](${SITE_URL}/sources.md): the same catalog as markdown
 - [Catalog data (CSV)](${SITE_URL}/sources.csv) and [JSON](${SITE_URL}/sources.json)
+- The launcher and catalog pages also serve themselves as Markdown when requested with \`Accept: text/markdown\`.
 
 ## Optional
 - [ATS platforms](${SITE_URL}/sources.html#ats-platforms) and [job boards](${SITE_URL}/sources.html#job-boards)
 - [Country sites](${SITE_URL}/sources.html#country) and [specialist boards](${SITE_URL}/sources.html#specialist)
 - [Startup / VC boards](${SITE_URL}/sources.html#startup-vc), [communities](${SITE_URL}/sources.html#communities) and [career pages](${SITE_URL}/sources.html#career-pages)
+`;
+}
+
+/**
+ * The whole site in one file, so an agent gets everything in a single request
+ * instead of crawling. Assembled from the same sources as every other artifact:
+ * the injected hero copy, the trust page bodies and the markdown catalog.
+ */
+function renderLlmsFullTxt(sources, total, bodies) {
+  const faq = faqItems(total)
+    .map((item) => `### ${item.q}\n${item.a}`)
+    .join("\n\n");
+  const trust = STATIC_PAGES.map(
+    (p) => htmlToMarkdown(bodies[p.slug].replace("${total}", String(total)), 1),
+  ).join("\n\n");
+  const catalog = renderSourcesMd(sources, total)
+    .replace(/^# .*\n+/, "")
+    .trim();
+
+  return `# Jobenium ${EM} full site content
+
+Everything on ${SITE_URL} in one file. Generated ${BUILD_DATE} from the same dataset that builds the tool, so the counts here match the live site.
+
+${whenToUse(total)}
+
+## Launcher
+
+${htmlToMarkdown(heroBlock(total), 1)}
+
+## Frequently asked questions
+
+${faq}
+
+## Trust and reference pages
+
+${trust}
+
+## Job source catalog
+
+${catalog}
+`;
+}
+
+/** Markdown twin of the homepage, served under `Accept: text/markdown`. */
+function renderIndexMd(total) {
+  return `# Jobenium ${EM} one job search across ${total} job boards
+
+${htmlToMarkdown(heroBlock(total), 1)}
+
+- Source catalog: ${SITE_URL}/sources.html
+- Catalog as markdown: ${SITE_URL}/sources.md
+- Catalog data: ${SITE_URL}/sources.csv and ${SITE_URL}/sources.json
+- Everything on this site in one file: ${SITE_URL}/llms-full.txt
 `;
 }
 
@@ -545,7 +664,8 @@ function staticPageBodies(total) {
       </ul>
 
       <h2>Who is behind it</h2>
-      <p>Jobenium is an independent project built and maintained by one person, <a href="https://linkedin.com/in/dipanjan-adhikari" rel="noopener nofollow">Dipanjan Adhikari</a>. Questions and corrections are welcome via the <a href="/contact.html">contact page</a>.</p>`,
+      <p>Jobenium is an independent project built and maintained by one person, <a href="https://linkedin.com/in/dipanjan-adhikari" rel="noopener nofollow">Dipanjan Adhikari</a>. Questions and corrections are welcome via the <a href="/contact.html">contact page</a>.</p>
+      <p class="meta">Written and maintained by Dipanjan Adhikari. Last updated: ${built}. The source counts on this page are generated from the catalog dataset on every build.</p>`,
 
     "privacy.html": `<h1>Privacy</h1>
       <p class="lede">Short version: Jobenium does not collect personal data and runs no accounts. Nothing non-essential is set on your device until you agree to it in the consent banner.</p>
@@ -645,14 +765,59 @@ function renderStaticPages(total) {
       { "@type": "ListItem", position: 2, name, item: `${SITE_URL}/` },
     ],
   });
+  // The About page is where E-E-A-T lives, so it names the person behind the
+  // tool. The @id matches the homepage's Person node, so the two pages describe
+  // one entity rather than two similar-looking ones.
+  const author = {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    "@id": `${SITE_URL}/#founder`,
+    name: "Dipanjan Adhikari",
+    url: `${SITE_URL}/about.html`,
+    sameAs: ["https://linkedin.com/in/dipanjan-adhikari"],
+    worksFor: { "@type": "Organization", name: "Jobenium", url: `${SITE_URL}/` },
+  };
 
   return STATIC_PAGES.map((p) => {
     const title = p.title.replace("${total}", String(total));
     const desc = p.desc;
     return page({
-      head: staticHead({ title, desc, path: p.slug, jsonLd: breadcrumb(p.title) }),
+      head: staticHead({
+        title,
+        desc,
+        path: p.slug,
+        jsonLd: p.slug === "about.html" ? [breadcrumb(p.title), author] : breadcrumb(p.title),
+      }),
       body: bodies[p.slug].replace("${total}", String(total)),
     });
+  });
+}
+
+/**
+ * 404 page. Not in the sitemap and noindex: it exists so a human or an agent
+ * that lands on a dead path gets the catalog and llms.txt instead of Vercel's
+ * bare error.
+ */
+function renderNotFoundHtml(total) {
+  return page({
+    head: staticHead({
+      title: `Page not found ${EM} Jobenium`,
+      desc: "That page does not exist. The job source catalog and the plain-text site context file are linked below.",
+      path: null,
+      robots: "noindex, follow",
+    }),
+    body: `<h1>Page not found</h1>
+      <p class="lede">That URL does not exist on Jobenium. Nothing was lost: the catalog and the plain-text version of this site are one link away.</p>
+
+      <h2>Try one of these</h2>
+      <ul>
+        <li><a href="/">Jobenium launcher</a> ${EM} run one job search across all ${total} sources.</li>
+        <li><a href="/sources.html">Job source catalog</a> ${EM} every source, grouped by category.</li>
+        <li><a href="/llms.txt">llms.txt</a> ${EM} this site as plain text, for agents.</li>
+        <li><a href="/llms-full.txt">Everything in one file</a> ${EM} the whole site in a single request.</li>
+        <li><a href="/about.html">About</a> and <a href="/contact.html">contact</a>.</li>
+        <li><a href="/sitemap.xml">Sitemap</a> ${EM} every indexable page.</li>
+      </ul>`,
   });
 }
 
@@ -718,7 +883,7 @@ function heroBlock(total) {
 
         <h2>Free, with no catch</h2>
         <p>The full catalog of ${total} sources is available at no cost and with no usage cap. Jobenium is not funded by advertising or affiliate deals, and <a href="/disclosure.html">placement in the source list cannot be bought</a>.</p>
-        <p>See the <a href="/sources.html">full source catalog</a> or the <a href="/privacy.html">privacy policy</a>.</p>
+        <p>See the <a href="/sources.html">full source catalog</a>, the <a href="/privacy.html">privacy policy</a>, or the <a href="/contact.html">contact page</a>.</p>
       </div>`;
 }
 
@@ -778,6 +943,16 @@ function patchIndexHtml(total, outDir = DIST) {
         logo: { "@type": "ImageObject", url: `${SITE_URL}/icon-512.png` },
         sameAs: ["https://linkedin.com/in/dipanjan-adhikari"],
         founder: { "@id": `${SITE_URL}/#founder` },
+        // Answer engines check that an Organization is reachable before they
+        // recommend it. The email is already published on /contact.html; there is
+        // deliberately no PostalAddress because there is no public one.
+        contactPoint: {
+          "@type": "ContactPoint",
+          contactType: "customer support",
+          email: "hello@jobenium.work",
+          url: `${SITE_URL}/contact.html`,
+          availableLanguage: ["en"],
+        },
       },
       {
         "@type": "Person",
@@ -924,10 +1099,13 @@ export function generate(outDir = DIST) {
     writeFileSync(join(outDir, name), contents);
     files.push(name);
   };
+  const bodies = staticPageBodies(total);
 
   write("sources.html", renderSourcesHtml(sources, total));
   write("sources.md", renderSourcesMd(sources, total));
   write("llms.txt", renderLlmsTxt(sources, total));
+  write("llms-full.txt", renderLlmsFullTxt(sources, total, bodies));
+  write("index.md", renderIndexMd(total));
   write("sitemap.xml", renderSitemap());
   write("sources.csv", csvRaw);
   write("sources.json", `${JSON.stringify(sources, null, 2)}\n`);
@@ -935,6 +1113,7 @@ export function generate(outDir = DIST) {
     const slug = p.match(/<link rel="canonical" href="[^"]*\/([^"/]+)"/)[1];
     write(slug, p);
   }
+  write("404.html", renderNotFoundHtml(total));
   if (patchIndexHtml(total, outDir)) files.push("index.html");
 
   return {
