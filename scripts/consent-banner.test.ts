@@ -85,7 +85,14 @@ describe("consent banner", () => {
     // Cookiebot's documented requirements. Drop any of these and the banner
     // fails silently: no dialog, no consent recorded, nothing in the console to
     // make it obvious on the page.
-    allows("script-src", "https://consent.cookiebot.com");
+    // script-src needs consentcdn as well: after consent is submitted, uc.js
+    // injects consentconfig/<cbid>/state.js from there, which 'self' + the
+    // script origin alone blocks.
+    allows(
+      "script-src",
+      "https://consent.cookiebot.com",
+      "https://consentcdn.cookiebot.com",
+    );
     allows("connect-src", "https://consent.cookiebot.com", "https://consentcdn.cookiebot.com");
     allows("frame-src", "https://consent.cookiebot.com", "https://consentcdn.cookiebot.com");
 
