@@ -786,7 +786,10 @@ function renderStaticPages(total) {
         title,
         desc,
         path: p.slug,
-        jsonLd: p.slug === "about.html" ? [breadcrumb(p.title), author] : breadcrumb(p.title),
+        // The interpolated title, not p.title: the raw entry still carries the
+        // ${total} placeholder, and breadcrumb names go into JSON-LD that agents
+        // read verbatim.
+        jsonLd: p.slug === "about.html" ? [breadcrumb(title), author] : breadcrumb(title),
       }),
       body: bodies[p.slug].replace("${total}", String(total)),
     });

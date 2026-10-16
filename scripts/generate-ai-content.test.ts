@@ -339,6 +339,17 @@ describe("generate-ai-content", () => {
     expect(readFileSync(join(dist, "sources.csv"), "utf8")).toBe(csvRaw);
   });
 
+  it("leaves no uninterpolated ${total} in any artifact", () => {
+    // A ${total} placeholder reached production once, inside the About page's
+    // breadcrumb JSON-LD, because the raw STATIC_PAGES title was passed to
+    // breadcrumb() instead of the interpolated one.
+    for (const name of generate(dist).files) {
+      const body = readFileSync(join(dist, name), "utf8");
+      expect(body, `${name} leaks a template placeholder`).not.toContain("${total}");
+      expect(body, `${name} leaks a template placeholder`).not.toContain("${built}");
+    }
+  });
+
   it("tells agents when to use Jobenium, and when not to", () => {
     const llms = readFileSync(join(dist, "llms.txt"), "utf8");
     expect(llms).toContain("## When to use this");

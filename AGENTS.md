@@ -113,21 +113,35 @@ The `.md` twins are useless without the routes that reach them, and those routes
 are the half of the AI layer a build cannot verify — previews sit behind
 Deployment Protection, so they cannot be curled either.
 
-- `rewrites` serves `/index.md` at `/` and `/sources.md` at `/sources.html` when
-  the request carries `Accept: text/markdown`. Both are conditional on that
-  header — an unconditional rewrite would hand Markdown to every browser — and
-  both carry `Vary: Accept`, as does the HTML response, or a CDN will serve one
-  variant from the other's cache entry. `scripts/agent-readiness.test.ts` guards
-  all of that, plus the six extensionless aliases (`/about`, `/privacy`,
-  `/terms`, `/contact`, `/disclosure`, `/sources`) that AI agents look for. The
-  canonical URLs stay the `.html` files; the aliases are not duplicates.
+- This is **`routes`, not `rewrites`**, and the difference is load-bearing.
+  `rewrites` are evaluated *after* the filesystem check, so a rewrite for `/` or
+  `/sources.html` — both of which exist as files — never fires. That shipped
+  once: `Accept: text/markdown` kept returning HTML on production, with no
+  error anywhere. `routes` are processed in array order, so the negotiation can
+  answer before `{ "handle": "filesystem" }` serves the page. Do not "simplify"
+  these back into `rewrites`.
+- The two negotiation rules serve `/index.md` at `/` and `/sources.md` at
+  `/sources.html` when the request carries `Accept: text/markdown`, and both sit
+  *before* the filesystem handle. They are conditional on that header — an
+  unconditional rewrite would hand Markdown to every browser — and `Vary: Accept`
+  comes from the `headers` rules, which match the incoming path and therefore
+  cover both variants.
+- After the filesystem handle come six extensionless aliases (`/about`,
+  `/privacy`, `/terms`, `/contact`, `/disclosure`, `/sources`) for the paths AI
+  agents look for. The canonical URLs stay the `.html` files; the aliases are not
+  duplicates. `scripts/agent-readiness.test.ts` guards the ordering, the
+  condition, and that `rewrites` is not used at all.
+- `routes` items are `additionalProperties: false` and reject `headers`; the
+  alias keys are `src`/`dest`. Schema: `https://openapi.vercel.sh/vercel.json`.
 - A markdown body **on a 404** is not reachable from static output alone: Vercel
   serves the not-found page with a 404 status and there is no way to swap the
   body by `Accept`. It needs a Function. `dist/404.html` is the HTML answer until
   then, which is why it links the catalog and the agent files.
 - `dist/index.md` and `dist/llms-full.txt` are converted from the *same* HTML the
   generator already emits (`htmlToMarkdown`), not written beside it. A second
-  copy of the copy is a second thing to drift.
+  copy of the copy is a second thing to drift. No generated file may contain an
+  uninterpolated `${total}` — one reached production inside the About page's
+  breadcrumb JSON-LD, and a test now fails the build on it.
 - **There is no pricing page and there must not be one.** There is no paid tier,
   so a pricing URL is surface with nothing behind it. The free signal is carried
   by copy instead — "no sign-up, free forever" in the hero, and
