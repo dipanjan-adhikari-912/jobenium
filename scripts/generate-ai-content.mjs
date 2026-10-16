@@ -27,13 +27,27 @@ const BUILD_DATE = new Date().toISOString().slice(0, 10);
 const EM = "\u2014"; // em dash
 
 /**
+ * Cookiebot consent banner (Usercentrics). Cookiebot's own guidance is "as high in
+ * the <head> as possible", and its automatic cookie blocking only protects the
+ * page if this is the first script in the head — so it goes above everything
+ * else, immediately after the encoding declaration.
+ *
+ * Two places must carry it and they cannot check each other: `index.html` (the
+ * Vite shell, which this generator only patches) and every page generated here.
+ * Both are guarded by scripts/consent-banner.test.ts, which also asserts the
+ * vercel.json CSP allows the origin — without those directives the banner is
+ * blocked and fails silently.
+ */
+const CONSENT_SCRIPT = `<script id="Cookiebot" src="https://consent.cookiebot.com/uc.js" data-cbid="b895cdbe-f2b2-4596-8de1-f681ec18836e" type="text/javascript" async></script>`;
+
+/**
  * Trust + reference pages. Small, hand-written, and entirely static: they carry
  * no catalog data, so they do not need to be regenerated from the CSV, but they
  * are emitted here so one place owns the whole set of indexable URLs.
  */
 const STATIC_PAGES = [
   { slug: "about.html", title: "About Jobenium: ${total} job sources, one search", desc: "Who builds Jobenium and why it exists. No ads, no accounts, and a source list that cannot be bought." },
-  { slug: "privacy.html", title: "Privacy: no cookies, no accounts, no tracking", desc: "Jobenium sets no cookies, stores nothing on a server and collects no personal data." },
+  { slug: "privacy.html", title: "Privacy: no accounts, no tracking, consent first", desc: "Jobenium collects no personal data. A consent banner asks before any non-essential cookie or script is loaded." },
   { slug: "terms.html", title: "Terms of use for the Jobenium launcher", desc: "The terms for using Jobenium: a free tool that builds job searches across third-party boards." },
   { slug: "contact.html", title: "Contact Jobenium: source corrections welcome", desc: "How to reach the person behind Jobenium, and what is most useful to send." },
   { slug: "disclosure.html", title: "Disclosure: how Jobenium is funded", desc: "Jobenium is free, carries no ads, and source placement cannot be bought or sold." },
@@ -243,6 +257,7 @@ ${pageNav(currentHref)}
 function staticHead({ title, desc, path, jsonLd }) {
   const url = `${SITE_URL}/${path}`;
   return `    <meta charset="UTF-8" />
+    ${CONSENT_SCRIPT}
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>${escapeHtml(title)}</title>
   <meta name="description" content="${escapeHtml(desc)}" />
@@ -356,6 +371,7 @@ function renderSourcesHtml(sources, total) {
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    ${CONSENT_SCRIPT}
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>273 Job Boards &amp; ATS Platforms ${EM} Jobenium Catalog</title>
     <meta name="description" content="Every one of the ${total} job sources Jobenium searches: ATS platforms, job boards, ${countryCount} country sites and more." />
@@ -532,7 +548,7 @@ function staticPageBodies(total) {
       <p>Jobenium is an independent project built and maintained by one person, <a href="https://linkedin.com/in/dipanjan-adhikari" rel="noopener nofollow">Dipanjan Adhikari</a>. Questions and corrections are welcome via the <a href="/contact.html">contact page</a>.</p>`,
 
     "privacy.html": `<h1>Privacy</h1>
-      <p class="lede">Short version: Jobenium does not collect personal data, set cookies, or run accounts. There is nothing to opt out of.</p>
+      <p class="lede">Short version: Jobenium does not collect personal data and runs no accounts. Nothing non-essential is set on your device until you agree to it in the consent banner.</p>
 
       <h2>No account, no server-side storage</h2>
       <p>Jobenium has no sign-up and no user database. Searches are assembled in your browser and handed straight to the source site. Your search terms are never sent to us, because there is no "us" server in the path.</p>
@@ -545,6 +561,9 @@ function staticPageBodies(total) {
         <li><strong>Preferences</strong> ${EM} things like link behaviour and dark mode.</li>
       </ul>
       <p>None of this is transmitted anywhere.</p>
+
+      <h2>Cookies and consent</h2>
+      <p>Consent is managed by Cookiebot. Until you pick an option in the banner, no non-essential cookie is set and no third-party script that needs consent is loaded ${EM} the blocking is automatic, not something you have to trust me to do. If you accept, only the categories you approved are activated. You can change or withdraw that choice at any time from the privacy trigger Cookiebot places on the page, and doing so removes the consent cookies again. Cookiebot stores your choice in its own necessary cookies, handled under Usercentrics' privacy policy rather than this one.</p>
 
       <h2>Analytics</h2>
       <p>Pages are counted with Vercel Web Analytics, which is cookie-free, collects no personal data, sets no advertising identifiers, and is not shared with advertising networks. It records aggregate page views and approximate geography so I can tell which parts of the site are used. The visitor counter in the footer reads that same aggregate count and disappears if the number cannot be retrieved.</p>

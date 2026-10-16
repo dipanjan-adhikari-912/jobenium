@@ -83,9 +83,16 @@ Artifacts it produces, all derived from the CSV:
   in JSON-LD without also being visible on the page.
 - Never hand-edit anything in `dist/`, and never commit generated files. Change
   the CSV or the generator and rebuild.
-- Generated pages are static HTML with **no** inline executable script, so the
-  `vercel.json` CSP needs no changes. The JSON-LD `<script>` blocks are
-  `type="application/ld+json"`, which CSP does not execute.
+- Generated pages are static HTML whose only script is **JSON-LD**, which CSP does
+  not execute, plus the Cookiebot consent banner (below).
+- **The Cookiebot consent banner is the one third-party script on the site.**
+  `consent.cookiebot.com/uc.js` (cbid `b895cdbe-…`) must be the *first script in
+  the `<head>`* of every page — Cookiebot's automatic cookie blocking only arms
+  if nothing else loads first. It lives in two places that cannot check each
+  other: `index.html` (the Vite shell, which the generator only patches) and
+  `CONSENT_SCRIPT` in `scripts/generate-ai-content.mjs` (every generated page).
+  `scripts/consent-banner.test.ts` guards both plus the CSP pairing. Removing it
+  needs the owner's say-so — it is a legal control, not a nicety.
 - `public/robots.txt` explicitly allows search and AI crawlers (GPTBot,
   OAI-SearchBot, PerplexityBot, ClaudeBot, Google-Extended, etc.) and points at
   `/sitemap.xml`.
